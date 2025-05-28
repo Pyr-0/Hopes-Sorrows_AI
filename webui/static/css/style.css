@@ -1,0 +1,133 @@
+/* body {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #1a1a1a;
+}
+
+#lava-lamp-container {
+    width: 100%;
+    height: 100vh;
+    position: relative;
+}  */
+
+:root {
+    --primary-color: #2d3142;
+    --secondary-color: #4f5d75;
+    --accent-color: #ff6432;
+    --text-color: #ffffff;
+    --background-color: #1d1e22;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+}
+
+.container {
+    width: 90%;
+    max-width: 1200px;
+    padding: 20px;
+}
+
+h1 {
+    text-align: center;
+    color: var(--accent-color);
+    margin-bottom: 30px;
+}
+
+h2 {
+    color: var(--text-color);
+    font-size: 1.2rem;
+    margin-bottom: 15px;
+}
+
+.lamp-container {
+    position: relative;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 30px;
+}
+
+#lava-lamp-canvas {
+    background-color: #000;
+    border-radius: 10px;
+    box-shadow: 0 0 30px rgba(255, 100, 50, 0.5);
+    overflow: hidden;
+}
+
+.controls {
+    background-color: var(--secondary-color);
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+label {
+    flex: 0 0 120px;
+    font-weight: 500;
+}
+
+input[type="color"] {
+    width: 60px;
+    height: 30px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+input[type="range"] {
+    flex: 1;
+    height: 8px;
+    background-color: var(--primary-color);
+    border-radius: 4px;
+    outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--accent-color);
+    cursor: pointer;
+}
+
+span {
+    margin-left: 10px;
+    min-width: 30px;
+    text-align: right;
+}
+
+@media (max-width: 768px) {
+    .control-group {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    label {
+        margin-bottom: 5px;
+    }
+    
+    input[type="range"] {
+        width: 100%;
+    }
+}
+

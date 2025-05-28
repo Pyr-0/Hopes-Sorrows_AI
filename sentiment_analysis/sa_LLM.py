@@ -1,0 +1,215 @@
+import os
+import json
+import openai
+from dotenv import load_dotenv
+from enum import Enum
+
+# Load environment variables from .env file
+load_dotenv()
+
+class SentimentLabel(Enum):
+	VERY_POSITIVE = "very_positive"
+	POSITIVE = "positive"
+	NEUTRAL = "neutral"
+	NEGATIVE = "negative"
+	VERY_NEGATIVE = "very_negative"
+
+class SentimentCategory(Enum):
+	HOPE = "hope"
+	SORROW = "sorrow"
+	NEUTRAL = "neutral"
+
+class Config:
+	# Default thresholds
+	THRESHOLDS = {
+		SentimentLabel.VERY_POSITIVE: 0.8,
+		SentimentLabel.POSITIVE: 0.3,
+		SentimentLabel.NEUTRAL: -0.2,
+		SentimentLabel.NEGATIVE: -0.5,
+		SentimentLabel.VERY_NEGATIVE: -0.8
+	}
+	
+	# Original thresholds for hope/sorrow categorization
+	SENTIMENT_THRESHOLD_HOPE = 0.3
+	SENTIMENT_THRESHOLD_SORROW = -0.2
+	
+	# Confidence thresholds
+	HIGH_CONFIDENCE = 0.8
+	MEDIUM_CONFIDENCE = 0.6
+	LOW_CONFIDENCE = 0.4
+	
+	# Default model to use
+	LLM_MODEL = "gpt-4o-mini"  # More accurate model
+
+class LLMSentimentAnalyzer:
+	"""Enhanced class for analyzing sentiment in text using an LLM."""
+		
+	def __init__(self, api_key=None, model_name=None):
+		"""Initialize the sentiment analyzer with OpenAI API."""
+		self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+		if not self.api_key:
+			self.api_key = input("Please enter your OpenAI API key: ")
+		
+		self.client = openai.OpenAI(api_key=self.api_key)
+		self.model_name = model_name or Config.LLM_MODEL
+		print(f"LLM Sentiment Analyzer initialized with model: {self.model_name}")
+		
+	def get_sentiment_category(self, score):
+		"""Map detailed sentiment to hope/sorrow category."""
+		if score >= Config.SENTIMENT_THRESHOLD_HOPE:
+			return SentimentCategory.HOPE.value
+		elif score <= Config.SENTIMENT_THRESHOLD_SORROW:
+			return SentimentCategory.SORROW.value
+		else:
+			return SentimentCategory.NEUTRAL.value
+		
+	def analyze(self, text):
+		"""
+		Analyze the sentiment of the given text using an LLM with enhanced scoring.
+
+		Args:
+			text (str): The text to analyze
+
+		Returns:
+			dict: A dictionary containing sentiment analysis results
+		"""
+		# Handle empty text
+		if not text or text.strip() == "":
+			return {
+				"score": 0.0,
+				"label": SentimentLabel.NEUTRAL.value,
+				"category": SentimentCategory.NEUTRAL.value,
+				"intensity": 0.0,
+				"confidence": 0.9,
+				"explanation": "Empty text provided."
+			}
+		
+		# Create a detailed system prompt for consistent sentiment analysis
+		system_prompt = """You are an expert sentiment analysis system. Analyze the provided text and return a JSON object with the following fields:
+		- score: a float between -1.0 (extremely negative) and 1.0 (extremely positive)
+		- label: one of "very_positive", "positive", "neutral", "negative", or "very_negative"
+		- intensity: absolute value of the score (how strong the sentiment is)
+		- confidence: your confidence in the analysis from 0.0 to 1.0
+		- explanation: a detailed explanation of your reasoning (2-3 sentences)
+		
+		Consider the following factors in your analysis:
+		1. Emotional intensity and strength
+		2. Context and tone
+		3. Word choice and language patterns
+		4. Cultural and contextual nuances
+		5. Mixed emotions and their balance
+		
+		Important: Return ONLY the JSON object with no other text."""
+		
+		# Make the API call
+		try:
+			response = self.client.chat.completions.create(
+				model=self.model_name,
+				messages=[
+					{"role": "system", "content": system_prompt},
+					{"role": "user", "content": f"Analyze the sentiment of this text: \"{text}\""}
+				],
+				temperature=0.3,  # Lower temperature for more consistent results
+				response_format={"type": "json_object"}  # Ensure JSON response
+			)
+			
+			# Extract and parse the JSON response
+			result_json = response.choices[0].message.content
+			result = json.loads(result_json)
+			
+			# Validate and normalize the result
+			result = self._validate_and_normalize_result(result)
+			
+			# Add category based on score
+			result["category"] = self.get_sentiment_category(result["score"])
+			
+			return result
+			
+		except Exception as e:
+			print(f"Error during sentiment analysis: {e}")
+			return {
+				"score": 0.0,
+				"label": SentimentLabel.NEUTRAL.value,
+				"category": SentimentCategory.NEUTRAL.value,
+				"intensity": 0.0,
+				"confidence": 0.0,
+				"explanation": f"Analysis failed due to error: {str(e)}"
+			}
+	
+	def _validate_and_normalize_result(self, result):
+		"""Validate and normalize the sentiment analysis result."""
+		# Ensure all required fields are present
+		required_fields = ["score", "label", "intensity", "confidence", "explanation"]
+		for field in required_fields:
+			if field not in result:
+				if field == "intensity" and "score" in result:
+					result["intensity"] = abs(float(result["score"]))
+				else:
+					result[field] = 0.0 if field in ["score", "intensity", "confidence"] else "neutral" if field == "label" else "No explanation provided."
+		
+		# Normalize score to [-1, 1] range
+		result["score"] = max(min(float(result["score"]), 1.0), -1.0)
+		
+		# Normalize confidence to [0, 1] range
+		result["confidence"] = max(min(float(result["confidence"]), 1.0), 0.0)
+		
+		# Normalize intensity
+		result["intensity"] = abs(result["score"])
+		
+		# Validate label
+		valid_labels = [label.value for label in SentimentLabel]
+		if result["label"] not in valid_labels:
+			# Map score to appropriate label
+			score = result["score"]
+			if score >= Config.THRESHOLDS[SentimentLabel.VERY_POSITIVE]:
+				result["label"] = SentimentLabel.VERY_POSITIVE.value
+			elif score >= Config.THRESHOLDS[SentimentLabel.POSITIVE]:
+				result["label"] = SentimentLabel.POSITIVE.value
+			elif score >= Config.THRESHOLDS[SentimentLabel.NEUTRAL]:
+				result["label"] = SentimentLabel.NEUTRAL.value
+			elif score >= Config.THRESHOLDS[SentimentLabel.NEGATIVE]:
+				result["label"] = SentimentLabel.NEGATIVE.value
+			else:
+				result["label"] = SentimentLabel.VERY_NEGATIVE.value
+		
+		return result
+
+# Singleton pattern for efficient reuse
+_llm_sentiment_analyzer = None
+
+def get_analyzer(api_key=None):
+	"""Get or create a singleton instance of the LLM sentiment analyzer."""
+	global _llm_sentiment_analyzer
+	if _llm_sentiment_analyzer is None:
+		_llm_sentiment_analyzer = LLMSentimentAnalyzer(api_key=api_key)
+	return _llm_sentiment_analyzer
+
+def analyze_sentiment(text, api_key=None):
+	"""Analyze the sentiment of the given text using the singleton LLM analyzer."""
+	analyzer = get_analyzer(api_key=api_key)
+	return analyzer.analyze(text)
+
+# Main execution block for testing
+if __name__ == "__main__":
+	# Test cases
+	test_texts = [
+		"I am absolutely thrilled and overjoyed with the results!",
+		"I'm quite happy with how things turned out.",
+		"The weather is okay today.",
+		"I'm a bit disappointed with the outcome.",
+		"I'm absolutely devastated and heartbroken.",
+		"I'm incredibly worried about the future",
+		"Tengo miedo de que me va a decir mi profesor", 
+		"Ich bin ganz zufrieden mit die ergebnise",
+		"I find it so fucking ridiculous how this is working and it upsets me to think of the future",
+		"not sure what to say, I mean, as if it were relevant to mention my hopes and sorrows anyways"
+	]
+
+	# OpenAI API Key use
+	api_key = os.getenv("OPENAI_API_KEY")
+	analyzer = get_analyzer(api_key=api_key)
+
+	for text in test_texts:
+		print(f"\nAnalyzing: \"{text}\"")
+		result = analyzer.analyze(text)
+		print(f"Result: {json.dumps(result, indent=2)}")

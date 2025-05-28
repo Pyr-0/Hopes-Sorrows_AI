@@ -1,0 +1,44 @@
+- Implement a RAG system 
+- bravia colors bouncing ball ad:
+
+		- A single ball might seem uninteresting or could be taken for granted, meaning #
+		 it only has an arangment of colors and could pas unnotice by a huge street or a bussy
+		 neighborhood. 
+		 but a thausand balls bouncing downhill create with their spin of colors an arrangement
+		 that becomes hard to miss and is seen as a river of color flowing
+		 downstream creating multiple patterns as it takes its course.
+		 the take from this analogy is that all humans are a multi colored bouncing ball , 
+		 diverse and filled with intricate sentiments that sometimes go unnoticed, but that when all 
+		 put together to interact with each other, we can see the collective, yet diverse
+		 stream of color. ( colors in this case represent emotions )
+
+
+- Implemented :
+
+Speaker diarization is a technology that automatically identifies and separates different speakers in an audio recording. Let me explain how it works in our system:
+What it does:
+Automatically detects when different people are speaking
+Separates the audio into segments by speaker
+Labels each segment with a speaker identifier (like "Speaker A", "Speaker B")
+Determines who spoke when and for how long
+How it works in our code:
+We enable it with speaker_labels=True in the AssemblyAI configuration
+AssemblyAI's AI model analyzes the audio and:
+Detects voice characteristics
+Identifies when the speaker changes
+Groups similar voices together
+Assigns unique identifiers to each speaker
+
+- the diff sentanalysis:
+
+=== Analysis Results ===
+
+1. Using Transformer-based Analysis (DistilBERT):
+   - Faster, more efficient
+   - Works offline
+   - Best for English text
+
+2. Using LLM-based Analysis (GPT-3.5):
+   - More nuanced understanding
+   - Better at complex emotions
+   - Works with multiple languages
