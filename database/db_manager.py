@@ -9,9 +9,8 @@ class DatabaseManager:
     def __init__(self, db_path="sqlite:///sentiment_analysis.db"):
         """Initialize database connection"""
         self.engine = create_engine(db_path)
-        # Create all tables
-        Base.metadata.drop_all(self.engine)  # Drop existing tables
-        Base.metadata.create_all(self.engine)  # Create new tables
+        # Create tables if they don't exist
+        Base.metadata.create_all(self.engine)
         Session = sessionmaker(bind=self.engine)
         self.session = Session()
 
