@@ -68,11 +68,11 @@ def record(duration=10, filename=None):
 	filepath = os.path.join(recordings_dir, filename)
 		
 	fs = 44100  # Sample rate
-	print(":studio_microphone: Recording...")
+	print("🎤 Recording...")
 	audio = sd.rec(int(duration * fs), samplerate=fs, channels=1)
 	sd.wait()
 	write(filepath, fs, audio)
-	print(f":white_check_mark: Saved as {filepath}")
+	print(f"✅ Saved as {filepath}")
 	return filepath
 
 def analyze_audio(audio_file, use_llm=True):
@@ -117,39 +117,29 @@ def analyze_audio(audio_file, use_llm=True):
 			# Store transcription
 			transcription = db_manager.add_transcription(speaker_id, text)
 			
-			# Perform both types of sentiment analysis
-			llm_sentiment = analyze_sentiment_llm(text)
-			transformer_sentiment = analyze_sentiment_transformer(text)
+			# Perform sentiment analysis based on use_llm parameter
+			if use_llm:
+				sentiment = analyze_sentiment_llm(text)
+				analyzer_type = AnalyzerType.LLM
+			else:
+				sentiment = analyze_sentiment_transformer(text)
+				analyzer_type = AnalyzerType.TRANSFORMER
 			
-			# Store both analyses in database
+			# Store analysis in database
 			db_manager.add_sentiment_analysis(
 				transcription_id=transcription.id,
-				analyzer_type=AnalyzerType.LLM,
-				label=llm_sentiment['label'],
-				category=llm_sentiment['category'],
-				score=llm_sentiment['score'],
-				confidence=llm_sentiment['confidence'],
-				explanation=llm_sentiment.get('explanation')
+				analyzer_type=analyzer_type,
+				label=sentiment['label'],
+				category=sentiment['category'],
+				score=sentiment['score'],
+				confidence=sentiment['confidence'],
+				explanation=sentiment.get('explanation')
 			)
-			
-			db_manager.add_sentiment_analysis(
-				transcription_id=transcription.id,
-				analyzer_type=AnalyzerType.TRANSFORMER,
-				label=transformer_sentiment['label'],
-				category=transformer_sentiment['category'],
-				score=transformer_sentiment['score'],
-				confidence=transformer_sentiment['confidence']
-			)
-			
-			# Use the requested analysis type for the results
-			sentiment = llm_sentiment if use_llm else transformer_sentiment
 			
 			results.append({
 				"speaker": speaker_name,
 				"text": text,
-				"sentiment": sentiment,
-				"llm_sentiment": llm_sentiment,
-				"transformer_sentiment": transformer_sentiment
+				"sentiment": sentiment
 			})
 
 		return {"utterances": results}

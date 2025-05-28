@@ -1,6 +1,9 @@
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from enum import Enum
+from typing import Dict, Optional, List
+from .advanced_classifier import AdvancedHopeSorrowClassifier, EmotionCategory, ClassificationResult
+from .cli_formatter import format_sentiment_result, format_error
 
 class SentimentLabel(Enum):
 	VERY_POSITIVE = "very_positive"
@@ -16,7 +19,8 @@ class SentimentCategory(Enum):
 
 class Config:
 	# Model configuration
-	SENTIMENT_MODEL = "distilbert-base-uncased-finetuned-sst-2-english" #most acurate so far but only in English
+	#SENTIMENT_MODEL = "distilbert-base-uncased-finetuned-sst-2-english" #Acurate in english trained with movie reviews
+	SENTIMENT_MODEL = "j-hartmann/emotion-english-distilroberta-base" # Acurate english trained in emotions
 	#SENTIMENT_MODEL = 'bhadresh-savani/distilbert-base-uncased-emotion' # Not so acurate
 	#SENTIMENT_MODEL = 'tabularisai/multilingual-sentiment-analysis' # needs a diff score system
 	#SENTIMENT_MODEL = 'nlptown/bert-base-multilingual-uncased-sentiment' # not so accurate
@@ -53,7 +57,10 @@ class SentimentAnalyzer:
 		self.model.to(self.device)
 		print(f"Model loaded successfully on {self.device}")
 		
-	def get_sentiment_label(self, score, confidence):
+		# Initialize advanced classifier
+		self.advanced_classifier = AdvancedHopeSorrowClassifier()
+		
+	def get_sentiment_label(self, score: float, confidence: float) -> str:
 		"""Get sentiment label based on score and confidence."""
 		if confidence < Config.LOW_CONFIDENCE:
 			return SentimentLabel.NEUTRAL.value
@@ -78,12 +85,14 @@ class SentimentAnalyzer:
 		else:
 			return SentimentCategory.NEUTRAL.value
 		
-	def analyze(self, text):
+	def analyze(self, text: str, speaker_id: Optional[str] = None, context_window: Optional[List[str]] = None) -> Dict:
 		"""
-		Analyze the sentiment of the given text with enhanced scoring.
+		Analyze the sentiment of the given text with enhanced scoring and classification.
 		
 		Args:
-			text (str): The text to analyze
+			text: The text to analyze
+			speaker_id: Optional speaker identifier for personalized analysis
+			context_window: Optional list of previous utterances for context
 			
 		Returns:
 			dict: A dictionary containing sentiment analysis results
@@ -93,7 +102,7 @@ class SentimentAnalyzer:
 			return {
 				"score": 0.0,
 				"label": SentimentLabel.NEUTRAL.value,
-				"category": SentimentCategory.NEUTRAL.value,
+				"category": EmotionCategory.REFLECTIVE_NEUTRAL.value,
 				"intensity": 0.0,
 				"confidence": 0.0,
 				"explanation": "Empty text provided."
@@ -112,34 +121,52 @@ class SentimentAnalyzer:
 		probs = probs.cpu().numpy()[0]
 		
 		# Calculate sentiment score (-1 to 1 scale)
-		score = float(probs[1] - probs[0])  # Mapped to [-1, 1]
+		# DistilBERT outputs [negative, positive] probabilities
+		negative_prob = probs[0]
+		positive_prob = probs[1]
+		
+		# Map probabilities to sentiment score
+		# If negative_prob > positive_prob, score should be negative
+		# If positive_prob > negative_prob, score should be positive
+		if negative_prob > positive_prob:
+			score = -1.0 * (negative_prob - positive_prob)
+		else:
+			score = positive_prob - negative_prob
 		
 		# Calculate confidence
 		confidence = float(max(probs))
 		
-		# Get sentiment label and category
+		# Get sentiment label
 		label = self.get_sentiment_label(score, confidence)
-		category = self.get_sentiment_category(score)
+		
+		# Get advanced emotion classification
+		classification = self.advanced_classifier.classify_emotion(
+			text=text,
+			sentiment_score=score,
+			speaker_id=speaker_id or "unknown",
+			context_window=context_window
+		)
 		
 		# Calculate intensity (how strong the sentiment is)
 		intensity = abs(score)
-		
-		# Generate explanation based on confidence and intensity
-		if confidence < Config.LOW_CONFIDENCE:
-			explanation = "Low confidence in sentiment analysis."
-		elif intensity < 0.2:
-			explanation = "Neutral sentiment detected."
-		else:
-			explanation = f"Strong {label} sentiment ({category}) detected with {confidence:.2f} confidence."
 		
 		# Return the analysis results
 		return {
 			"score": score,
 			"label": label,
-			"category": category,
+			"category": classification.category.value,
 			"intensity": intensity,
 			"confidence": confidence,
-			"explanation": explanation
+			"classification_confidence": classification.confidence,
+			"matched_patterns": [
+				{
+					"pattern": pattern.description,
+					"weight": weight,
+					"category": pattern.category.value
+				}
+				for pattern, weight in classification.matched_patterns
+			],
+			"explanation": classification.explanation
 		}
 
 # Singleton pattern for efficient reuse
@@ -152,29 +179,43 @@ def get_analyzer():
 		_sentiment_analyzer = SentimentAnalyzer()
 	return _sentiment_analyzer
 
-def analyze_sentiment(text):
-	"""Analyze the sentiment of the given text using the singleton analyzer."""
-	analyzer = get_analyzer()
-	return analyzer.analyze(text)
+def analyze_sentiment(text: str, speaker_id: Optional[str] = None, context_window: Optional[List[str]] = None, verbose: bool = True) -> Dict:
+    """
+    Analyze the sentiment of the given text using the singleton analyzer.
+    
+    Args:
+        text: The text to analyze
+        speaker_id: Optional speaker identifier for personalized analysis
+        context_window: Optional list of previous utterances for context
+        verbose: Whether to print formatted output (default: True)
+    
+    Returns:
+        dict: Analysis results
+    """
+    try:
+        analyzer = get_analyzer()
+        result = analyzer.analyze(text, speaker_id, context_window)
+        
+        if verbose:
+            format_sentiment_result(result)
+        
+        return result
+    except Exception as e:
+        if verbose:
+            format_error(f"Error during sentiment analysis: {str(e)}")
+        raise
 
 # Main execution block for testing
 if __name__ == "__main__":
-	# Test cases
-	test_texts = [
-		"I am absolutely thrilled and overjoyed with the results!",
-		"I'm quite happy with how things turned out.",
-		"The weather is okay today.",
-		"I'm a bit disappointed with the outcome.",
-		"I'm absolutely devastated and heartbroken.",
-		"I'm incredibly worried about the future",
-		"Tengo miedo de que me va a decir mi profesor", 
-		"Ich bin ganz zufrieden mit die ergebnise",
-		"I find it so fucking ridiculous how this is working and it upsets me to think of the future",
-		"not sure what to say, I mean, as if it were relevant to mention my hopes and sorrows anyways"
-	]
-		
-	analyzer = get_analyzer()
-	for text in test_texts:
-		result = analyzer.analyze(text)
-		print(f"\nText: {text}")
-		print(f"Result: {result}")
+    test_texts = [
+        "I will achieve my dreams and make a better future for myself.",
+        "I lost everything I worked for and it's all gone now.",
+        "I was hurt, but I've learned to heal and move forward.",
+        "I'm excited about the future but scared of what might happen.",
+        "I'm thinking about what this experience means to me."
+    ]
+    
+    analyzer = get_analyzer()
+    for text in test_texts:
+        print(f"\nAnalyzing: \"{text}\"")
+        analyze_sentiment(text, verbose=True)
