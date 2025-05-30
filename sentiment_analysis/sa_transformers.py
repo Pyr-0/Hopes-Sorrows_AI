@@ -19,23 +19,23 @@ class SentimentCategory(Enum):
 
 class Config:
 	# Model configuration
-	#SENTIMENT_MODEL = "distilbert-base-uncased-finetuned-sst-2-english" #Acurate in english trained with movie reviews
-	SENTIMENT_MODEL = "j-hartmann/emotion-english-distilroberta-base" # Acurate english trained in emotions
+	SENTIMENT_MODEL = "j-hartmann/emotion-english-distilroberta-base" # Emotion model - CORRECT for this use case
+	# SENTIMENT_MODEL = "distilbert-base-uncased-finetuned-sst-2-english" # Binary sentiment - too simplistic for hope/sorrow
 	#SENTIMENT_MODEL = 'bhadresh-savani/distilbert-base-uncased-emotion' # Not so acurate
 	#SENTIMENT_MODEL = 'tabularisai/multilingual-sentiment-analysis' # needs a diff score system
 	#SENTIMENT_MODEL = 'nlptown/bert-base-multilingual-uncased-sentiment' # not so accurate
 	
-	# Original thresholds for hope/sorrow categorization
-	SENTIMENT_THRESHOLD_HOPE = 0.3
-	SENTIMENT_THRESHOLD_SORROW = -0.2
+	# Updated thresholds for more accurate sentiment categorization
+	SENTIMENT_THRESHOLD_HOPE = 0.2      # Lowered from 0.3
+	SENTIMENT_THRESHOLD_SORROW = -0.1   # Raised from -0.2
 	
-	# Scoring thresholds for more nuanced sentiment analysis
+	# Updated scoring thresholds for more nuanced sentiment analysis
 	THRESHOLDS = {
-		SentimentLabel.VERY_POSITIVE: 0.8,  # Very positive emotions
-		SentimentLabel.POSITIVE: 0.3,       # Positive emotions
-		SentimentLabel.NEUTRAL: -0.2,       # Neutral emotions
-		SentimentLabel.NEGATIVE: -0.5,      # Negative emotions
-		SentimentLabel.VERY_NEGATIVE: -0.8  # Very negative emotions
+		SentimentLabel.VERY_POSITIVE: 0.6,   # Lowered from 0.8
+		SentimentLabel.POSITIVE: 0.2,        # Lowered from 0.3
+		SentimentLabel.NEUTRAL: -0.1,        # Raised from -0.2
+		SentimentLabel.NEGATIVE: -0.3,       # Raised from -0.5
+		SentimentLabel.VERY_NEGATIVE: -0.6   # Raised from -0.8
 	}
 	
 	# Confidence thresholds
@@ -65,16 +65,17 @@ class SentimentAnalyzer:
 		if confidence < Config.LOW_CONFIDENCE:
 			return SentimentLabel.NEUTRAL.value
 			
-		if score >= Config.THRESHOLDS[SentimentLabel.VERY_POSITIVE]:
-			return SentimentLabel.VERY_POSITIVE.value
-		elif score >= Config.THRESHOLDS[SentimentLabel.POSITIVE]:
-			return SentimentLabel.POSITIVE.value
-		elif score >= Config.THRESHOLDS[SentimentLabel.NEUTRAL]:
-			return SentimentLabel.NEUTRAL.value
-		elif score >= Config.THRESHOLDS[SentimentLabel.NEGATIVE]:
-			return SentimentLabel.NEGATIVE.value
-		else:
+		# Updated logic to better handle negative sentiments
+		if score <= Config.THRESHOLDS[SentimentLabel.VERY_NEGATIVE]:
 			return SentimentLabel.VERY_NEGATIVE.value
+		elif score <= Config.THRESHOLDS[SentimentLabel.NEGATIVE]:
+			return SentimentLabel.NEGATIVE.value
+		elif score <= Config.THRESHOLDS[SentimentLabel.NEUTRAL]:
+			return SentimentLabel.NEUTRAL.value
+		elif score <= Config.THRESHOLDS[SentimentLabel.POSITIVE]:
+			return SentimentLabel.POSITIVE.value
+		else:
+			return SentimentLabel.VERY_POSITIVE.value
 		
 	def get_sentiment_category(self, score):
 		"""Map detailed sentiment to hope/sorrow category."""
@@ -120,21 +121,41 @@ class SentimentAnalyzer:
 		probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
 		probs = probs.cpu().numpy()[0]
 		
-		# Calculate sentiment score (-1 to 1 scale)
-		# DistilBERT outputs [negative, positive] probabilities
-		negative_prob = probs[0]
-		positive_prob = probs[1]
-		
-		# Map probabilities to sentiment score
-		# If negative_prob > positive_prob, score should be negative
-		# If positive_prob > negative_prob, score should be positive
-		if negative_prob > positive_prob:
-			score = -1.0 * (negative_prob - positive_prob)
+		# For j-hartmann/emotion-english-distilroberta-base:
+		# The model outputs 7 emotions: [anger, disgust, fear, joy, neutral, sadness, surprise]
+		# We need to map these to a sentiment score for hope/sorrow classification
+
+		# Get emotion probabilities (indices based on model output)
+		emotions = {
+			'anger': probs[0],      # Index 0
+			'disgust': probs[1],    # Index 1  
+			'fear': probs[2],       # Index 2
+			'joy': probs[3],        # Index 3
+			'neutral': probs[4],    # Index 4
+			'sadness': probs[5],    # Index 5
+			'surprise': probs[6]    # Index 6
+		}
+
+		# Map emotions to sentiment score (-1 to 1 scale)
+		# Positive emotions (lean toward hope): joy, surprise
+		# Negative emotions (lean toward sorrow): anger, disgust, fear, sadness
+		# Neutral: neutral
+
+		positive_emotions = emotions['joy'] + emotions['surprise'] * 0.5  # Surprise can be positive or negative
+		negative_emotions = emotions['anger'] + emotions['disgust'] + emotions['fear'] + emotions['sadness']
+		neutral_emotion = emotions['neutral']
+
+		# Calculate sentiment score: positive emotions minus negative emotions
+		# Scale to -1 to 1 range considering neutral as baseline
+		total_emotional = positive_emotions + negative_emotions
+		if total_emotional > 0:
+			score = (positive_emotions - negative_emotions) / (total_emotional + neutral_emotion)
 		else:
-			score = positive_prob - negative_prob
-		
-		# Calculate confidence
-		confidence = float(max(probs))
+			score = 0.0  # Pure neutral case
+
+		# Calculate confidence as the maximum emotion probability (excluding neutral for more decisive classification)
+		non_neutral_probs = [emotions[key] for key in emotions if key != 'neutral']
+		confidence = float(max(non_neutral_probs) if non_neutral_probs else emotions['neutral'])
 		
 		# Get sentiment label
 		label = self.get_sentiment_label(score, confidence)
@@ -179,6 +200,11 @@ def get_analyzer():
 		_sentiment_analyzer = SentimentAnalyzer()
 	return _sentiment_analyzer
 
+def reset_analyzer():
+	"""Reset the singleton analyzer (useful for testing or model changes)."""
+	global _sentiment_analyzer
+	_sentiment_analyzer = None
+
 def analyze_sentiment(text: str, speaker_id: Optional[str] = None, context_window: Optional[List[str]] = None, verbose: bool = True) -> Dict:
     """
     Analyze the sentiment of the given text using the singleton analyzer.
@@ -204,18 +230,3 @@ def analyze_sentiment(text: str, speaker_id: Optional[str] = None, context_windo
         if verbose:
             format_error(f"Error during sentiment analysis: {str(e)}")
         raise
-
-# Main execution block for testing
-if __name__ == "__main__":
-    test_texts = [
-        "I will achieve my dreams and make a better future for myself.",
-        "I lost everything I worked for and it's all gone now.",
-        "I was hurt, but I've learned to heal and move forward.",
-        "I'm excited about the future but scared of what might happen.",
-        "I'm thinking about what this experience means to me."
-    ]
-    
-    analyzer = get_analyzer()
-    for text in test_texts:
-        print(f"\nAnalyzing: \"{text}\"")
-        analyze_sentiment(text, verbose=True)
