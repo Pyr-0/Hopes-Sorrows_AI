@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hopes & Sorrows - A Journey Through Human Emotion</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="landing-page">
+    <!-- Navigation -->
+    <nav class="nav-bar">
+        <div class="nav-container">
+            <a href="/" class="nav-logo">
+                <span class="logo-text">Hopes & Sorrows</span>
+            </a>
+            <div class="nav-links">
+                <a href="/info" class="nav-link">About</a>
+                <a href="/stats" class="nav-link">Statistics</a>
+                <a href="/app" class="nav-link nav-cta">Start Sharing</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <h1 class="hero-title">
+                    Where <span class="text-hope">hopes</span> and <span class="text-sorrow">sorrows</span> 
+                    <br>become beautiful
+                </h1>
+                <p class="hero-subtitle">
+                    Share your voice. Watch emotions bloom as organic, living forms. 
+                    <br>Discover the beauty in human emotional contrast.
+                </p>
+                <div class="hero-actions">
+                    <a href="/app" class="btn btn-primary">
+                        <span class="btn-icon">🎤</span>
+                        Start Your Journey
+                    </a>
+                    <a href="/info" class="btn btn-secondary">
+                        <span class="btn-icon">ℹ️</span>
+                        Learn More
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Preview Animation Container -->
+            <div class="hero-visual">
+                <div id="preview-animation"></div>
+                <div class="visual-description">
+                    <p>Each voice becomes a unique, living form</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features">
+        <div class="features-container">
+            <h2 class="features-title">How It Works</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🎙️</div>
+                    <h3>Share Your Voice</h3>
+                    <p>Record up to 44 seconds of your thoughts, feelings, or experiences.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🧠</div>
+                    <h3>AI Analysis</h3>
+                    <p>Advanced sentiment analysis categorizes your emotions with nuanced understanding.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎨</div>
+                    <h3>Visual Poetry</h3>
+                    <p>Your emotions transform into organic, flowing shapes that interact and evolve.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🌊</div>
+                    <h3>Collective Experience</h3>
+                    <p>Similar emotions gravitate toward each other, creating a living tapestry of human feeling.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Call to Action -->
+    <section class="cta">
+        <div class="cta-container">
+            <h2 class="cta-title">Ready to add your voice to the symphony?</h2>
+            <p class="cta-subtitle">Join others in creating a beautiful visualization of human emotion</p>
+            <a href="/app" class="btn btn-large btn-primary">
+                <span class="btn-icon">✨</span>
+                Begin Recording
+            </a>
+        </div>
+    </section>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/p5.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/landing-preview.js') }}"></script>
+</body>
+</html> 

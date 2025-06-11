@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Statistics - Hopes & Sorrows</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="stats-page">
+    <!-- Navigation -->
+    <nav class="nav-bar">
+        <div class="nav-container">
+            <a href="/" class="nav-logo">
+                <span class="logo-text">Hopes & Sorrows</span>
+            </a>
+            <div class="nav-links">
+                <a href="/" class="nav-link">Home</a>
+                <a href="/info" class="nav-link">About</a>
+                <a href="/app" class="nav-link">Experience</a>
+                <a href="/stats" class="nav-link active">Statistics</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Stats Container -->
+    <main class="stats-container">
+        <div class="stats-header">
+            <h1 class="page-title">Emotional Landscape Statistics</h1>
+            <p class="page-subtitle">Observing the growth and patterns of shared human emotions</p>
+        </div>
+
+        <!-- Real-time Overview -->
+        <section class="overview-section">
+            <div class="overview-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">🎤</div>
+                    <div class="stat-number" id="total-voices">0</div>
+                    <div class="stat-label">Total Voices</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">💝</div>
+                    <div class="stat-number" id="hope-count">0</div>
+                    <div class="stat-label">Hope</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">💙</div>
+                    <div class="stat-number" id="sorrow-count">0</div>
+                    <div class="stat-label">Sorrow</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🦋</div>
+                    <div class="stat-number" id="transformative-count">0</div>
+                    <div class="stat-label">Transformative</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⚖️</div>
+                    <div class="stat-number" id="ambivalent-count">0</div>
+                    <div class="stat-label">Ambivalent</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🤔</div>
+                    <div class="stat-number" id="reflective-count">0</div>
+                    <div class="stat-label">Reflective</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Charts Section -->
+        <section class="charts-section">
+            <div class="charts-grid">
+                <!-- Emotion Distribution Chart -->
+                <div class="chart-container">
+                    <h3 class="chart-title">Emotion Distribution</h3>
+                    <canvas id="emotion-pie-chart"></canvas>
+                </div>
+
+                <!-- Growth Over Time -->
+                <div class="chart-container">
+                    <h3 class="chart-title">Growth Over Time</h3>
+                    <canvas id="growth-line-chart"></canvas>
+                </div>
+
+                <!-- Daily Activity -->
+                <div class="chart-container">
+                    <h3 class="chart-title">Daily Activity Pattern</h3>
+                    <canvas id="daily-activity-chart"></canvas>
+                </div>
+
+                <!-- Intensity Distribution -->
+                <div class="chart-container">
+                    <h3 class="chart-title">Emotional Intensity</h3>
+                    <canvas id="intensity-chart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Detailed Statistics -->
+        <section class="detailed-stats">
+            <h3 class="section-title">Detailed Analytics</h3>
+            
+            <div class="stats-tabs">
+                <button class="tab-btn active" data-tab="current">Current Session</button>
+                <button class="tab-btn" data-tab="today">Today</button>
+                <button class="tab-btn" data-tab="week">This Week</button>
+                <button class="tab-btn" data-tab="all">All Time</button>
+            </div>
+
+            <div class="tab-content">
+                <div class="tab-panel active" id="current-panel">
+                    <div class="detailed-grid">
+                        <div class="detail-card">
+                            <h4>Average Confidence</h4>
+                            <div class="detail-value" id="avg-confidence">0%</div>
+                        </div>
+                        <div class="detail-card">
+                            <h4>Average Intensity</h4>
+                            <div class="detail-value" id="avg-intensity">0%</div>
+                        </div>
+                        <div class="detail-card">
+                            <h4>Most Common Emotion</h4>
+                            <div class="detail-value" id="most-common">-</div>
+                        </div>
+                        <div class="detail-card">
+                            <h4>Active Speakers</h4>
+                            <div class="detail-value" id="active-speakers">0</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Other tab panels would be populated dynamically -->
+                <div class="tab-panel" id="today-panel">
+                    <div class="coming-soon">
+                        <h4>Historical Data Coming Soon</h4>
+                        <p>We're building comprehensive historical analytics to track emotional patterns over time.</p>
+                    </div>
+                </div>
+                
+                <div class="tab-panel" id="week-panel">
+                    <div class="coming-soon">
+                        <h4>Weekly Analytics Coming Soon</h4>
+                        <p>Discover weekly emotional trends and patterns in the community.</p>
+                    </div>
+                </div>
+                
+                <div class="tab-panel" id="all-panel">
+                    <div class="coming-soon">
+                        <h4>Historical Overview Coming Soon</h4>
+                        <p>A comprehensive view of all emotional data collected since the beginning.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Live Feed -->
+        <section class="live-feed">
+            <h3 class="section-title">Live Activity Feed</h3>
+            <div class="feed-container" id="activity-feed">
+                <div class="feed-item welcome">
+                    <div class="feed-icon">👋</div>
+                    <div class="feed-content">
+                        <div class="feed-text">Welcome to the Statistics Dashboard</div>
+                        <div class="feed-time">Real-time updates will appear here</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Scripts -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="{{ url_for('static', filename='js/stats.js') }}"></script>
+</body>
+</html> 

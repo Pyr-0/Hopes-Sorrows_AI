@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Share Your Voice - Hopes & Sorrows</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="app-page">
+    <!-- Navigation -->
+    <nav class="nav-bar">
+        <div class="nav-container">
+            <a href="/" class="nav-logo">
+                <span class="logo-text">Hopes & Sorrows</span>
+            </a>
+            <div class="nav-links">
+                <a href="/" class="nav-link">Home</a>
+                <a href="/info" class="nav-link">About</a>
+                <a href="/stats" class="nav-link">Statistics</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main App Container -->
+    <main class="app-container">
+        <!-- Visualization Canvas -->
+        <div id="visualization-container"></div>
+        
+        <!-- Blob Info Toggle Button -->
+        <button id="blob-info-toggle" class="blob-info-toggle" title="Toggle Emotional Landscape">
+            📊
+        </button>
+        
+        <!-- Recording Interface -->
+        <div class="recording-interface">
+            <div class="recording-panel">
+                <!-- Recording Status -->
+                <div id="recording-status" class="status-panel">
+                    <div class="status-text">Ready to Record</div>
+                    <div class="status-subtitle">Click to share your emotional journey</div>
+                </div>
+                
+                <!-- Recording Controls -->
+                <div class="recording-controls">
+                    <button id="record-button" class="record-btn" title="Start Recording">
+                        <div class="record-icon">
+                            <div class="record-circle"></div>
+                        </div>
+                    </button>
+                    
+                    <!-- Timer -->
+                    <div id="timer" class="timer">
+                        <div class="timer-circle">
+                            <svg class="timer-svg" viewBox="0 0 100 100">
+                                <circle cx="50" cy="50" r="45" class="timer-background"/>
+                                <circle cx="50" cy="50" r="45" class="timer-progress" id="timer-progress"/>
+                            </svg>
+                            <div class="timer-text">
+                                <span id="timer-seconds">44</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Processing Status -->
+                <div id="processing-status" class="processing-panel">
+                    <div class="processing-spinner"></div>
+                    <div class="processing-text">Analyzing your voice...</div>
+                    <div class="processing-subtitle">Discovering the emotions within</div>
+                </div>
+                
+                <!-- Error Messages -->
+                <div id="error-panel" class="error-panel">
+                    <div class="error-icon">⚠️</div>
+                    <div class="error-text"></div>
+                    <button class="error-dismiss">Try Again</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Blob Information Panel -->
+        <div id="blob-info" class="blob-info-panel">
+            <div class="blob-info-content">
+                <div class="blob-info-header">
+                    <h3 class="blob-info-title">Emotional Landscape</h3>
+                    <button class="blob-info-close">×</button>
+                </div>
+                <div class="blob-info-body">
+                    <div class="blob-count">
+                        <span id="blob-counter">0</span> voices shared
+                    </div>
+                    <div class="blob-categories">
+                        <div class="category-stats">
+                            <div class="category-stat hope">
+                                <div class="category-dot"></div>
+                                <span class="category-name">Hope</span>
+                                <span class="category-count" id="hope-count">0</span>
+                            </div>
+                            <div class="category-stat sorrow">
+                                <div class="category-dot"></div>
+                                <span class="category-name">Sorrow</span>
+                                <span class="category-count" id="sorrow-count">0</span>
+                            </div>
+                            <div class="category-stat transformative">
+                                <div class="category-dot"></div>
+                                <span class="category-name">Transformative</span>
+                                <span class="category-count" id="transformative-count">0</span>
+                            </div>
+                            <div class="category-stat ambivalent">
+                                <div class="category-dot"></div>
+                                <span class="category-name">Ambivalent</span>
+                                <span class="category-count" id="ambivalent-count">0</span>
+                            </div>
+                            <div class="category-stat reflective">
+                                <div class="category-dot"></div>
+                                <span class="category-name">Reflective</span>
+                                <span class="category-count" id="reflective-count">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Voice Analysis Confirmation Panel -->
+        <div id="analysis-confirmation" class="analysis-confirmation">
+            <h3>✨ Analysis Complete!</h3>
+            <div class="analysis-summary">
+                <!-- Success message will be inserted here by JavaScript -->
+            </div>
+            <div class="analysis-stats">
+                <div class="analysis-stat">
+                    <div class="analysis-stat-number" id="analysis-utterances">0</div>
+                    <div class="analysis-stat-label">Utterances</div>
+                </div>
+                <div class="analysis-stat">
+                    <div class="analysis-stat-number" id="analysis-emotions">0</div>
+                    <div class="analysis-stat-label">Emotions</div>
+                </div>
+                <div class="analysis-stat">
+                    <div class="analysis-stat-number" id="analysis-confidence">0%</div>
+                    <div class="analysis-stat-label">Confidence</div>
+                </div>
+            </div>
+            <div class="analysis-emotions" id="analysis-emotion-list">
+                <!-- Emotion tags will be populated here -->
+            </div>
+            <div class="analysis-actions">
+                <button class="analysis-btn primary" id="analysis-continue-btn">Continue Exploring</button>
+                <button class="analysis-btn secondary" id="analysis-view-btn">View Landscape</button>
+            </div>
+        </div>
+        
+        <!-- Instructions Panel -->
+        <div id="instructions" class="instructions-panel">
+            <div class="instructions-content">
+                <h3>How to Share</h3>
+                <div class="instruction-steps">
+                    <div class="instruction-step">
+                        <span class="step-number">1</span>
+                        <span class="step-text">Click "Start Recording" to begin recording</span>
+                    </div>
+                    <div class="instruction-step">
+                        <span class="step-number">2</span>
+                        <span class="step-text">Share your thoughts, feelings, or experiences</span>
+                    </div>
+                    <div class="instruction-step">
+                        <span class="step-number">3</span>
+                        <span class="step-text">Watch your emotions become living art</span>
+                    </div>
+                    <div class="instruction-step">
+                        <span class="step-number">4</span>
+                        <span class="step-text">Click on blobs to explore their stories</span>
+                    </div>
+                </div>
+                <button class="instructions-close">Got it!</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading emotional landscape...</div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/p5.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/anime.min.js') }}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <script src="{{ url_for('static', filename='js/emotion-visualizer.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html> 
