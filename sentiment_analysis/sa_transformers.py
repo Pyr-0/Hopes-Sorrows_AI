@@ -20,7 +20,7 @@ class SentimentCategory(Enum):
 class Config:
 	# Model configuration
 	SENTIMENT_MODEL = "j-hartmann/emotion-english-distilroberta-base" # Emotion model - CORRECT for this use case
-	# SENTIMENT_MODEL = "distilbert-base-uncased-finetuned-sst-2-english" # Binary sentiment - too simplistic for hope/sorrow
+	# SENTIMENT_MODEL = "distilbert-base-uncased-finetuned-sst-2-english" # Binary sentiment - too simplistic for hope/sorrow only trained for movie reviews 
 	#SENTIMENT_MODEL = 'bhadresh-savani/distilbert-base-uncased-emotion' # Not so acurate
 	#SENTIMENT_MODEL = 'tabularisai/multilingual-sentiment-analysis' # needs a diff score system
 	#SENTIMENT_MODEL = 'nlptown/bert-base-multilingual-uncased-sentiment' # not so accurate

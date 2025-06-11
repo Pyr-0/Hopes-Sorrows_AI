@@ -68,7 +68,7 @@ class SpeakerManager:
 		"""Clean up resources"""
 		self.speaker_names.clear()
 
-def record(duration=10, filename=None):
+def record(duration=65, filename=None):
 	"""Record audio with timestamp in filename"""
 	# Create recordings directory if it doesn't exist
 	recordings_dir = os.path.join(os.path.dirname(__file__), "recordings")
