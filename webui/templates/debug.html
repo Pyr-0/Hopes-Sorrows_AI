@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GLSL Debug Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        
+        .debug-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #333;
+            border-radius: 8px;
+        }
+        
+        .test-result {
+            margin: 10px 0;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        
+        .success {
+            background: #2d5a2d;
+            color: #90ee90;
+        }
+        
+        .error {
+            background: #5a2d2d;
+            color: #ff6b6b;
+        }
+        
+        .warning {
+            background: #5a5a2d;
+            color: #ffeb3b;
+        }
+        
+        #test-canvas {
+            border: 1px solid #666;
+            margin: 10px 0;
+        }
+        
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        .console-output {
+            background: #000;
+            color: #0f0;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            max-height: 200px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-container">
+        <h1>🔍 GLSL Visualization Debug Test</h1>
+        
+        <div class="test-section">
+            <h2>1. Browser Compatibility</h2>
+            <div id="browser-tests"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>2. WebGL Test</h2>
+            <canvas id="test-canvas" width="400" height="200"></canvas>
+            <div id="webgl-tests"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>3. JavaScript Libraries</h2>
+            <div id="library-tests"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>4. EmotionVisualizer Test</h2>
+            <button onclick="testEmotionVisualizer()">Test EmotionVisualizer</button>
+            <div id="visualizer-tests"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>5. Console Output</h2>
+            <div id="console-output" class="console-output"></div>
+            <button onclick="clearConsole()">Clear Console</button>
+        </div>
+        
+        <div class="test-section">
+            <h2>6. Actions</h2>
+            <button onclick="window.location.href='/app'">Go to Main App</button>
+            <button onclick="location.reload()">Refresh Page</button>
+        </div>
+    </div>
+
+    <!-- Load required libraries -->
+    <script src="{{ url_for('static', filename='js/p5.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/emotion-visualizer.js') }}"></script>
+
+    <script>
+        // Console capture
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        
+        function addToConsole(message, type = 'log') {
+            const output = document.getElementById('console-output');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#ff6b6b' : type === 'warn' ? '#ffeb3b' : '#0f0';
+            output.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addToConsole(args.join(' '), 'log');
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addToConsole(args.join(' '), 'error');
+        };
+        
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            addToConsole(args.join(' '), 'warn');
+        };
+        
+        function clearConsole() {
+            document.getElementById('console-output').innerHTML = '';
+        }
+        
+        function addResult(containerId, message, success) {
+            const container = document.getElementById(containerId);
+            const div = document.createElement('div');
+            div.className = `test-result ${success ? 'success' : 'error'}`;
+            div.textContent = message;
+            container.appendChild(div);
+        }
+        
+        function addWarning(containerId, message) {
+            const container = document.getElementById(containerId);
+            const div = document.createElement('div');
+            div.className = 'test-result warning';
+            div.textContent = message;
+            container.appendChild(div);
+        }
+        
+        // Test 1: Browser Compatibility
+        function testBrowser() {
+            const container = 'browser-tests';
+            
+            // Check user agent
+            addResult(container, `Browser: ${navigator.userAgent}`, true);
+            
+            // Check WebGL support
+            try {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                addResult(container, `WebGL Support: ${gl ? 'Available' : 'Not Available'}`, !!gl);
+            } catch (e) {
+                addResult(container, `WebGL Support: Error - ${e.message}`, false);
+            }
+            
+            // Check required APIs
+            const apis = [
+                'requestAnimationFrame',
+                'fetch',
+                'Promise',
+                'addEventListener'
+            ];
+            
+            apis.forEach(api => {
+                const available = typeof window[api] !== 'undefined';
+                addResult(container, `${api}: ${available ? 'Available' : 'Missing'}`, available);
+            });
+        }
+        
+        // Test 2: WebGL
+        function testWebGL() {
+            const container = 'webgl-tests';
+            const canvas = document.getElementById('test-canvas');
+            
+            try {
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                
+                if (!gl) {
+                    addResult(container, 'WebGL context creation failed', false);
+                    return;
+                }
+                
+                addResult(container, 'WebGL context created successfully', true);
+                
+                // Test shader compilation
+                const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+                const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+                
+                const vertexSource = `
+                    attribute vec2 a_position;
+                    void main() {
+                        gl_Position = vec4(a_position, 0.0, 1.0);
+                    }
+                `;
+                
+                const fragmentSource = `
+                    precision mediump float;
+                    uniform float u_time;
+                    void main() {
+                        gl_FragColor = vec4(sin(u_time), cos(u_time), 0.5, 1.0);
+                    }
+                `;
+                
+                gl.shaderSource(vertexShader, vertexSource);
+                gl.compileShader(vertexShader);
+                
+                if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+                    addResult(container, `Vertex shader error: ${gl.getShaderInfoLog(vertexShader)}`, false);
+                    return;
+                }
+                
+                gl.shaderSource(fragmentShader, fragmentSource);
+                gl.compileShader(fragmentShader);
+                
+                if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
+                    addResult(container, `Fragment shader error: ${gl.getShaderInfoLog(fragmentShader)}`, false);
+                    return;
+                }
+                
+                addResult(container, 'Shader compilation successful', true);
+                
+                // Simple animation test
+                let startTime = Date.now();
+                function animate() {
+                    const time = (Date.now() - startTime) / 1000;
+                    gl.clearColor(Math.sin(time), Math.cos(time), 0.5, 1.0);
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+                    requestAnimationFrame(animate);
+                }
+                animate();
+                
+                addResult(container, 'WebGL animation test started', true);
+                
+            } catch (error) {
+                addResult(container, `WebGL test error: ${error.message}`, false);
+            }
+        }
+        
+        // Test 3: Libraries
+        function testLibraries() {
+            const container = 'library-tests';
+            
+            // Test p5.js
+            if (typeof p5 !== 'undefined') {
+                addResult(container, 'p5.js loaded successfully', true);
+            } else {
+                addResult(container, 'p5.js not loaded', false);
+            }
+            
+            // Test EmotionVisualizer
+            if (typeof EmotionVisualizer !== 'undefined') {
+                addResult(container, 'EmotionVisualizer class available', true);
+            } else {
+                addResult(container, 'EmotionVisualizer class not found', false);
+            }
+        }
+        
+        // Test 4: EmotionVisualizer
+        function testEmotionVisualizer() {
+            const container = 'visualizer-tests';
+            container.innerHTML = ''; // Clear previous results
+            
+            try {
+                if (typeof EmotionVisualizer === 'undefined') {
+                    addResult(container, 'EmotionVisualizer class not available', false);
+                    return;
+                }
+                
+                const visualizer = new EmotionVisualizer();
+                addResult(container, 'EmotionVisualizer instance created', true);
+                
+                // Check required methods
+                const methods = ['init', 'initializeCanvas', 'animate', 'addBlob'];
+                methods.forEach(method => {
+                    const hasMethod = typeof visualizer[method] === 'function';
+                    addResult(container, `Method ${method}: ${hasMethod ? 'Available' : 'Missing'}`, hasMethod);
+                });
+                
+                // Test initialization (without actually initializing)
+                addResult(container, 'EmotionVisualizer basic test completed', true);
+                
+            } catch (error) {
+                addResult(container, `EmotionVisualizer test error: ${error.message}`, false);
+            }
+        }
+        
+        // Run tests on page load
+        window.addEventListener('load', () => {
+            console.log('🔍 Starting debug tests...');
+            testBrowser();
+            testWebGL();
+            testLibraries();
+            console.log('✅ Debug tests completed');
+        });
+    </script>
+</body>
+</html> 

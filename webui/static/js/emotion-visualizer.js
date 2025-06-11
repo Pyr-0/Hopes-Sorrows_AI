@@ -1,168 +1,373 @@
 /**
- * Enhanced Organic Blob Emotion Visualizer
- * Inspired by https://medium.com/creative-coding-space/meet-blobby-in-p5-js-5d9d99232400
- * Features: Organic blobs, fluid dynamics, background particles, anime.js animations
+ * GLSL-Enhanced Emotion Visualizer for Hopes & Sorrows
+ * Integrates GLSL shaders with P5.js overlay for sentiment visualization
  */
 
 class EmotionVisualizer {
     constructor() {
+        // WebGL/GLSL properties
+        this.gl = null;
+        this.program = null;
         this.canvas = null;
-        this.p = null; // P5.js instance
+        this.uniforms = {};
+        this.startTime = Date.now();
+        this.mouseX = 0;
+        this.mouseY = 0;
+        this.intensity = 1;
+        this.timeScale = 1;
+        this.zoom = 1;
+        this.sentimentColor = [1, 1, 1]; // Default white
+        
+        // P5.js overlay properties
+        this.p5Instance = null;
         this.blobs = [];
-        this.particles = [];
-        this.ripples = [];
-        this.time = 0;
-        this.change = 0; // For organic animation
-        
-        // Blob management
-        this.maxBlobs = 80; // Increased to match database
         this.blobIdCounter = 0;
+        this.maxBlobs = 80;
         
-        // Physics settings
-        this.gravity = 0.1;
-        this.friction = 0.98;
-        this.repulsion = 50;
-        
-        // Visual settings
-        this.showDebugInfo = false;
-        
-        // Current active tooltip
-        this.activeTooltip = null;
+        // Interaction properties
         this.lastClickedBlob = null;
-        this.tooltipHideTimer = null; // Timer for auto-hiding tooltips
+        this.ripples = [];
         
-        this.initializeColorPalettes();
+        // Sentiment color palettes
+        this.sentimentColors = {
+            hope: [1.0, 0.84, 0.0],              // Gold
+            sorrow: [0.29, 0.56, 0.89],          // Blue
+            transformative: [0.61, 0.35, 0.71],  // Purple
+            ambivalent: [0.91, 0.30, 0.24],      // Red-Orange
+            reflective_neutral: [0.58, 0.65, 0.65] // Gray
+        };
+        
+        // Background particles for ethereal effect
+        this.particles = [];
+        this.numParticles = 150;
+        
+        console.log('🎨 GLSL-Enhanced Emotion Visualizer initialized');
     }
     
-    initializeColorPalettes() {
-        // Enhanced color palettes with anime.js compatible colors
-        this.colorPalettes = {
-            hope: {
-                colors: [
-                    { r: 255, g: 215, b: 0, a: 0.8 },   // Gold
-                    { r: 255, g: 165, b: 0, a: 0.7 },   // Orange
-                    { r: 255, g: 255, b: 102, a: 0.6 }, // Light yellow
-                    { r: 255, g: 140, b: 0, a: 0.9 },   // Dark orange
-                    { r: 255, g: 193, b: 7, a: 0.8 }    // Amber
-                ],
-                particleColor: [255, 215, 0, 30]
-            },
-            sorrow: {
-                colors: [
-                    { r: 74, g: 144, b: 226, a: 0.8 },  // Blue
-                    { r: 30, g: 144, b: 255, a: 0.7 },  // Dodger blue
-                    { r: 135, g: 206, b: 250, a: 0.6 }, // Light sky blue
-                    { r: 25, g: 25, b: 112, a: 0.9 },   // Midnight blue
-                    { r: 100, g: 149, b: 237, a: 0.8 }  // Cornflower blue
-                ],
-                particleColor: [74, 144, 226, 30]
-            },
-            transformative: {
-                colors: [
-                    { r: 155, g: 89, b: 182, a: 0.8 },  // Purple
-                    { r: 142, g: 68, b: 173, a: 0.7 },  // Dark orchid
-                    { r: 186, g: 85, b: 211, a: 0.6 },  // Medium orchid
-                    { r: 75, g: 0, b: 130, a: 0.9 },    // Indigo
-                    { r: 138, g: 43, b: 226, a: 0.8 }   // Blue violet
-                ],
-                particleColor: [155, 89, 182, 30]
-            },
-            ambivalent: {
-                colors: [
-                    { r: 231, g: 76, b: 60, a: 0.8 },   // Red
-                    { r: 192, g: 57, b: 43, a: 0.7 },   // Dark red
-                    { r: 255, g: 99, b: 71, a: 0.6 },   // Tomato
-                    { r: 139, g: 0, b: 0, a: 0.9 },     // Dark red
-                    { r: 220, g: 20, b: 60, a: 0.8 }    // Crimson
-                ],
-                particleColor: [231, 76, 60, 30]
-            },
-            reflective_neutral: {
-                colors: [
-                    { r: 149, g: 165, b: 166, a: 0.8 }, // Gray
-                    { r: 127, g: 140, b: 141, a: 0.7 }, // Dark gray
-                    { r: 189, g: 195, b: 199, a: 0.6 }, // Light gray
-                    { r: 52, g: 73, b: 94, a: 0.9 },    // Dark slate gray
-                    { r: 176, g: 196, b: 222, a: 0.8 }  // Light steel blue
-                ],
-                particleColor: [149, 165, 166, 30]
+    /**
+     * Initialize the visualizer with a container
+     * @param {HTMLElement} container - The container element
+     */
+    async init(container) {
+        console.log('🎨 Initializing GLSL-Enhanced Emotion Visualizer...');
+        
+        try {
+            // Store container reference
+            this.container = container;
+            
+            // Initialize canvas and WebGL
+            const success = this.initializeCanvas();
+            
+            if (!success) {
+                throw new Error('Failed to initialize canvas');
             }
-        };
+            
+            // Start animation loop
+            this.animate();
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                this.handleResize();
+            });
+            
+            console.log('✅ GLSL-Enhanced Emotion Visualizer ready');
+            return true;
+            
+        } catch (error) {
+            console.error('❌ Visualizer initialization failed:', error);
+            throw error;
+        }
+    }
+    
+    /**
+     * Handle window resize
+     */
+    handleResize() {
+        if (this.canvas && this.gl) {
+            this.canvas.width = window.innerWidth;
+            this.canvas.height = window.innerHeight;
+            this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+        }
+        
+        if (this.p5Instance) {
+            this.p5Instance.resizeCanvas(window.innerWidth, window.innerHeight);
+        }
     }
     
     initializeCanvas() {
-        const container = document.getElementById('visualization-container');
-        if (!container) {
-            console.error('Visualization container not found');
+        try {
+            // Get the visualization container
+            const container = document.getElementById('visualization-container');
+            if (!container) {
+                console.error('❌ Visualization container not found');
+                return false;
+            }
+            
+            // Create GLSL canvas
+            this.canvas = document.createElement('canvas');
+            this.canvas.id = 'glsl-canvas';
+            this.canvas.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                z-index: 1;
+                width: 100%;
+                height: 100%;
+            `;
+            container.appendChild(this.canvas);
+            
+            // Create P5 container
+            const p5Container = document.createElement('div');
+            p5Container.id = 'p5-container';
+            p5Container.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                z-index: 2;
+                width: 100%;
+                height: 100%;
+                pointer-events: auto;
+            `;
+            container.appendChild(p5Container);
+            
+            // Initialize WebGL and P5
+            this.setupWebGL();
+            this.setupP5();
+            this.createBackgroundParticles();
+            
+            console.log('✅ GLSL-Enhanced canvas initialized');
+            return true;
+            
+        } catch (error) {
+            console.error('❌ Canvas initialization failed:', error);
             return false;
         }
+    }
+    
+    setupWebGL() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
         
-        this.setupP5();
-        return true;
+        this.gl = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
+        if (!this.gl) {
+            console.error('❌ WebGL not supported');
+            return;
+        }
+        
+        // Vertex shader source
+        const vertexSource = `
+            attribute vec2 a_position;
+            void main() {
+                gl_Position = vec4(a_position, 0.0, 1.0);
+            }
+        `;
+        
+        // Fragment shader source with enhanced sentiment visualization
+        const fragmentSource = `
+            precision highp float;
+            
+            uniform vec2 u_resolution;
+            uniform vec2 u_mouse;
+            uniform float u_time;
+            uniform float u_intensity;
+            uniform float u_timeScale;
+            uniform float u_zoom;
+            uniform vec3 u_sentimentColor;
+            
+            #define PI 3.14159265358979
+            #define TAU 6.283185307179586
+            
+            void main() {
+                vec3 c = vec3(0.0);
+                vec2 R = u_resolution;
+                vec2 m = (u_mouse - 0.5 * R) / R.y * 2.0;
+                
+                float t = (length(u_mouse) > 0.0) ? 
+                          atan(m.x, -m.y) : 
+                          -0.54 + (u_time * u_timeScale * TAU) / 3600.0;
+                      
+                float n = (cos(t) > 0.0) ? sin(t) : 1.0 / sin(t);
+                float e = n * 2.0;
+                float z = clamp(pow(500.0, n), 1e-16, 1e+18) * u_zoom;
+                
+                vec2 uv = (gl_FragCoord.xy - 0.5 * R) / R.y * 2.0;
+                vec2 u = uv * z;
+                
+                float ro = -PI / 2.0;
+                float cr = u_time * u_timeScale * TAU / 5.0;
+                float a = atan(u.y, u.x) - ro;
+                float i = a / TAU;
+                float r = exp(log(length(u)) / e);
+                float sc = ceil(r - i);
+                float s = pow(sc + i, 2.0);
+                float vd = cos((sc * TAU + a) / n);
+                float ts = cr + s / n * TAU;
+                
+                c += sin(ts / 2.0) * u_intensity;
+                c *= cos(ts);
+                c *= pow(abs(sin((r - i) * PI)), abs(e) + 5.0);
+                c *= 0.2 + abs(vd);
+                c = min(c, pow(length(u) / z, -1.0 / n));
+                
+                // Enhanced color mixing with sentiment
+                vec3 rgb = mix(
+                    vec3(vd + 1.0, abs(sin(t)), 1.0 - vd), 
+                    u_sentimentColor, 
+                    0.3
+                );
+                
+                c += (c * 2.0) - (rgb * 0.5);
+                
+                // Add subtle vignette effect
+                float dist = length(uv);
+                c *= 1.0 - smoothstep(0.8, 1.2, dist);
+                
+                gl_FragColor = vec4(c, 1.0);
+            }
+        `;
+        
+        // Create shaders
+        const vertexShader = this.createShader(this.gl.VERTEX_SHADER, vertexSource);
+        const fragmentShader = this.createShader(this.gl.FRAGMENT_SHADER, fragmentSource);
+        
+        // Create program
+        this.program = this.gl.createProgram();
+        this.gl.attachShader(this.program, vertexShader);
+        this.gl.attachShader(this.program, fragmentShader);
+        this.gl.linkProgram(this.program);
+        
+        if (!this.gl.getProgramParameter(this.program, this.gl.LINK_STATUS)) {
+            console.error('❌ Program link error:', this.gl.getProgramInfoLog(this.program));
+            return;
+        }
+        
+        // Get uniform locations
+        this.uniforms = {
+            resolution: this.gl.getUniformLocation(this.program, 'u_resolution'),
+            mouse: this.gl.getUniformLocation(this.program, 'u_mouse'),
+            time: this.gl.getUniformLocation(this.program, 'u_time'),
+            intensity: this.gl.getUniformLocation(this.program, 'u_intensity'),
+            timeScale: this.gl.getUniformLocation(this.program, 'u_timeScale'),
+            zoom: this.gl.getUniformLocation(this.program, 'u_zoom'),
+            sentimentColor: this.gl.getUniformLocation(this.program, 'u_sentimentColor')
+        };
+        
+        // Create vertex buffer for full-screen quad
+        const vertices = new Float32Array([
+            -1, -1,
+             1, -1,
+            -1,  1,
+             1,  1
+        ]);
+        
+        const vertexBuffer = this.gl.createBuffer();
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, vertexBuffer);
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, vertices, this.gl.STATIC_DRAW);
+        
+        // Get position attribute location and enable it
+        const positionLocation = this.gl.getAttribLocation(this.program, 'a_position');
+        this.gl.enableVertexAttribArray(positionLocation);
+        this.gl.vertexAttribPointer(positionLocation, 2, this.gl.FLOAT, false, 0, 0);
+        
+        // Set viewport
+        this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Mouse interaction
+        this.canvas.addEventListener('mousemove', (e) => {
+            this.mouseX = e.clientX;
+            this.mouseY = window.innerHeight - e.clientY; // Flip Y
+        });
+        
+        // Start animation loop
+        this.animate();
+        
+        console.log('✅ WebGL setup complete');
+    }
+    
+    createShader(type, source) {
+        const shader = this.gl.createShader(type);
+        this.gl.shaderSource(shader, source);
+        this.gl.compileShader(shader);
+        
+        if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
+            console.error('❌ Shader compile error:', this.gl.getShaderInfoLog(shader));
+            this.gl.deleteShader(shader);
+            return null;
+        }
+        
+        return shader;
     }
     
     setupP5() {
         const self = this;
         
         const sketch = (p) => {
-            self.p = p;
+            self.p5Instance = p;
             
             p.setup = () => {
-                // Create canvas
                 const canvas = p.createCanvas(window.innerWidth, window.innerHeight);
-                canvas.parent('visualization-container');
+                canvas.parent('p5-container');
+                canvas.style('pointer-events', 'auto');
                 
-                // Set drawing settings
-                p.colorMode(p.RGB, 255, 255, 255, 1);
-                
-                console.log('🎨 Enhanced organic blob visualizer initialized:', p.width, 'x', p.height);
-                
-                // Initialize animation variables
-                self.change = 0;
-                self.time = 0;
-                
-                // Create ethereal background particles
-                self.createBackgroundParticles();
-                
-                // Add test blob after 1 second
-                setTimeout(() => {
-                    self.addTestBlob();
-                }, 1000);
+                p.colorMode(p.RGB, 255);
+                console.log('✅ P5.js overlay setup complete');
             };
             
             p.draw = () => {
-                self.drawFrame();
+                p.clear(); // Transparent background for overlay
+                self.updateBlobPhysics();
+                self.drawBackgroundParticles();
+                self.drawBlobs();
+                self.drawRipples();
+                self.cleanupRipples();
+            };
+            
+            p.mousePressed = () => {
+                if (!self.isClickOnUIElement(p.mouseX, p.mouseY)) {
+                    self.handleInteraction(p.mouseX, p.mouseY);
+                }
             };
             
             p.windowResized = () => {
                 p.resizeCanvas(window.innerWidth, window.innerHeight);
-                self.createBackgroundParticles(); // Recreate particles for new size
-                console.log('🔄 Canvas resized:', p.width, 'x', p.height);
-            };
-            
-            p.mousePressed = () => {
-                // FIXED: Only handle clicks in the visualization area and not on UI elements
-                const clickedOnUI = self.isClickOnUIElement(p.mouseX, p.mouseY);
-                
-                if (!clickedOnUI && p.mouseY > 70) { // Avoid navigation area
-                    self.handleInteraction(p.mouseX, p.mouseY);
-                    return false; // Prevent default behavior
+                if (self.canvas) {
+                    self.canvas.width = window.innerWidth;
+                    self.canvas.height = window.innerHeight;
+                    self.gl.viewport(0, 0, window.innerWidth, window.innerHeight);
                 }
-                
-                // If clicked on UI, don't handle the interaction
-                return true; // Allow default behavior for UI elements
             };
         };
         
         new p5(sketch);
     }
     
+    animate() {
+        if (!this.gl || !this.program) return;
+        
+        const currentTime = (Date.now() - this.startTime) / 1000;
+        
+        this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+        this.gl.useProgram(this.program);
+        
+        // Set uniforms
+        this.gl.uniform2f(this.uniforms.resolution, this.canvas.width, this.canvas.height);
+        this.gl.uniform2f(this.uniforms.mouse, this.mouseX, this.mouseY);
+        this.gl.uniform1f(this.uniforms.time, currentTime);
+        this.gl.uniform1f(this.uniforms.intensity, this.intensity);
+        this.gl.uniform1f(this.uniforms.timeScale, this.timeScale);
+        this.gl.uniform1f(this.uniforms.zoom, this.zoom);
+        this.gl.uniform3f(this.uniforms.sentimentColor, ...this.sentimentColor);
+        
+        // Draw
+        this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
+        
+        requestAnimationFrame(() => this.animate());
+    }
+    
     isClickOnUIElement(x, y) {
-        // Check if click is on any UI element
         const elementsAtPoint = document.elementsFromPoint(x, y);
         
         for (let element of elementsAtPoint) {
-            // Check for specific UI elements that should block blob interactions
             if (element.classList.contains('blob-info-panel') ||
                 element.classList.contains('blob-info-toggle') ||
                 element.classList.contains('recording-interface') ||
@@ -186,336 +391,196 @@ class EmotionVisualizer {
         return false;
     }
     
-    /**
-     * BACKGROUND PARTICLES CREATION - MODIFY HERE FOR FUTURE CHANGES
-     * 
-     * This function creates the ethereal background particles that give the deep space feel.
-     * 
-     * Key parameters to modify:
-     * - numParticles: Number of particles (currently 80 for performance)
-     * - size range: particle.size = Math.random() * 1.5 + 0.5 (0.5 to 2.0 pixels)
-     * - alpha range: particle.alpha = Math.random() * 0.2 + 0.1 (0.1 to 0.3 opacity)
-     * - velocity range: vx/vy = (Math.random() - 0.5) * 0.3 (-0.15 to 0.15 pixels/frame)
-     * - life span: particle.life = Math.random() * 500 + 250 (250 to 750 frames)
-     * 
-     * To make particles more/less visible:
-     * - Increase/decrease alpha values
-     * - Increase/decrease size values
-     * - Increase/decrease numParticles
-     * 
-     * To make particles move faster/slower:
-     * - Increase/decrease velocity multiplier (currently 0.3)
-     * - Modify noise influence in updateBackgroundParticles()
-     */
     createBackgroundParticles() {
         this.particles = [];
-        const numParticles = 80; // Reduced number for better performance - MODIFY THIS for more/fewer particles
         
-        for (let i = 0; i < numParticles; i++) {
+        for (let i = 0; i < this.numParticles; i++) {
             this.particles.push({
-                x: Math.random() * this.p.width,
-                y: Math.random() * this.p.height,
-                vx: (Math.random() - 0.5) * 0.3, // MODIFY THIS for faster/slower movement
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * window.innerHeight,
+                vx: (Math.random() - 0.5) * 0.3,
                 vy: (Math.random() - 0.5) * 0.3,
-                size: Math.random() * 1.5 + 0.5, // MODIFY THIS for larger/smaller particles (0.5-2.0)
-                alpha: Math.random() * 0.2 + 0.1, // MODIFY THIS for more/less visible particles (0.1-0.3)
-                life: Math.random() * 500 + 250, // MODIFY THIS for longer/shorter particle life
-                maxLife: 500,
-                twinkle: Math.random() * Math.PI * 2
+                size: Math.random() * 1.5 + 0.5,
+                alpha: Math.random() * 0.2 + 0.1,
+                life: Math.random() * 500 + 250,
+                noiseOffset: Math.random() * 1000
             });
         }
         
-        console.log(`✨ Created ${numParticles} background particles for ethereal effect`);
-    }
-    
-    drawFrame() {
-        if (!this.p) return;
-        
-        // FIXED: Properly clear background to prevent trails
-        // This solid background clear prevents particle trails and oversaturation
-        this.p.background(21, 21, 21); // Dark space background - MODIFY HERE for different background color
-        
-        // Update animation time
-        this.change += 0.01;
-        this.time += 0.02;
-        
-        // Update and draw background particles
-        this.updateBackgroundParticles();
-        this.drawBackgroundParticles();
-        
-        // Apply physics to blobs
-        this.updateBlobPhysics();
-        
-        // Draw all blobs - FIXED: Ensure blobs are actually drawn
-        this.drawBlobs();
-        
-        // Draw temporary ripples
-        this.drawRipples();
-        
-        // Clean up old ripples
-        this.cleanupRipples();
-        
-        // Debug info (only if enabled)
-        if (this.showDebugInfo) {
-            this.drawDebugInfo();
-        }
-    }
-    
-    updateBackgroundParticles() {
-        for (let particle of this.particles) {
-            // Gentle floating movement
-            particle.x += particle.vx;
-            particle.y += particle.vy;
-            
-            // Add subtle noise-based movement for organic feel
-            particle.vx += (this.p.noise(particle.x * 0.01, particle.y * 0.01, this.time) - 0.5) * 0.01;
-            particle.vy += (this.p.noise(particle.x * 0.01 + 100, particle.y * 0.01 + 100, this.time) - 0.5) * 0.01;
-            
-            // Apply gentle friction
-            particle.vx *= 0.99;
-            particle.vy *= 0.99;
-            
-            // Wrap around boundaries
-            if (particle.x < 0) particle.x = this.p.width;
-            if (particle.x > this.p.width) particle.x = 0;
-            if (particle.y < 0) particle.y = this.p.height;
-            if (particle.y > this.p.height) particle.y = 0;
-            
-            // Update twinkle effect
-            particle.twinkle += 0.03;
-            
-            // Update life
-            particle.life--;
-            if (particle.life <= 0) {
-                particle.x = Math.random() * this.p.width;
-                particle.y = Math.random() * this.p.height;
-                particle.life = particle.maxLife;
-            }
-        }
-    }
-    
-    drawBackgroundParticles() {
-        const p = this.p;
-        
-        for (let particle of this.particles) {
-            // Twinkling effect
-            const twinkleAlpha = particle.alpha * (0.5 + 0.5 * Math.sin(particle.twinkle));
-            
-            p.fill(255, 255, 255, twinkleAlpha);
-            p.noStroke();
-            p.ellipse(particle.x, particle.y, particle.size, particle.size);
-        }
+        console.log(`✨ Created ${this.numParticles} background particles`);
     }
     
     updateBlobPhysics() {
-        // Apply physics to each blob
-        for (let i = 0; i < this.blobs.length; i++) {
-            const blob = this.blobs[i];
-            
-            // Apply gravity towards center with some randomness
-            const centerX = this.p.width / 2;
-            const centerY = this.p.height / 2;
+        if (!this.p5Instance) return;
+        
+        const p = this.p5Instance;
+        
+        this.blobs.forEach(blob => {
+            // Apply gentle gravity toward center
+            const centerX = p.width / 2;
+            const centerY = p.height / 2;
             const distToCenter = Math.sqrt((blob.x - centerX) ** 2 + (blob.y - centerY) ** 2);
             
-            if (distToCenter > 100) {
-                const gravityForce = this.gravity * 0.05;
-                blob.vx += (centerX - blob.x) * gravityForce / distToCenter;
-                blob.vy += (centerY - blob.y) * gravityForce / distToCenter;
+            if (distToCenter > 50) {
+                const gravity = 0.1;
+                blob.vx += (centerX - blob.x) / distToCenter * gravity;
+                blob.vy += (centerY - blob.y) / distToCenter * gravity;
             }
             
-            // Apply repulsion between blobs
-            for (let j = i + 1; j < this.blobs.length; j++) {
-                const other = this.blobs[j];
-                const dx = blob.x - other.x;
-                const dy = blob.y - other.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                const minDistance = blob.radius + other.radius + 15;
-                
-                if (distance < minDistance && distance > 0) {
-                    const force = (minDistance - distance) * 0.005;
-                    const fx = (dx / distance) * force;
-                    const fy = (dy / distance) * force;
+            // Blob-to-blob repulsion
+            this.blobs.forEach(otherBlob => {
+                if (blob !== otherBlob) {
+                    const dx = blob.x - otherBlob.x;
+                    const dy = blob.y - otherBlob.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    const minDistance = blob.radius + otherBlob.radius + 10;
                     
-                    blob.vx += fx;
-                    blob.vy += fy;
-                    other.vx -= fx;
-                    other.vy -= fy;
+                    if (distance < minDistance && distance > 0) {
+                        const repulsion = 50;
+                        const force = repulsion / (distance * distance);
+                        blob.vx += (dx / distance) * force;
+                        blob.vy += (dy / distance) * force;
+                    }
                 }
-            }
-            
-            // Add some organic floating movement
-            blob.vx += (this.p.noise(blob.x * 0.01, blob.y * 0.01, this.time) - 0.5) * 0.05;
-            blob.vy += (this.p.noise(blob.x * 0.01 + 100, blob.y * 0.01 + 100, this.time) - 0.5) * 0.05;
+            });
             
             // Apply friction
-            blob.vx *= this.friction;
-            blob.vy *= this.friction;
+            blob.vx *= 0.98;
+            blob.vy *= 0.98;
             
             // Update position
             blob.x += blob.vx;
             blob.y += blob.vy;
             
-            // Bounce off boundaries
-            if (blob.x - blob.radius < 0 || blob.x + blob.radius > this.p.width) {
+            // Boundary bouncing
+            if (blob.x - blob.radius < 0 || blob.x + blob.radius > p.width) {
                 blob.vx *= -0.8;
-                blob.x = Math.max(blob.radius, Math.min(this.p.width - blob.radius, blob.x));
-            }
-            if (blob.y - blob.radius < 70 || blob.y + blob.radius > this.p.height) {
-                blob.vy *= -0.8;
-                blob.y = Math.max(70 + blob.radius, Math.min(this.p.height - blob.radius, blob.y));
+                blob.x = Math.max(blob.radius, Math.min(p.width - blob.radius, blob.x));
             }
             
-            // Update organic animation
+            if (blob.y - blob.radius < 100 || blob.y + blob.radius > p.height) {
+                blob.vy *= -0.8;
+                blob.y = Math.max(100 + blob.radius, Math.min(p.height - blob.radius, blob.y));
+            }
+            
+            // Organic floating movement
+            blob.noiseOffset += 0.01;
+            const noiseX = (this.p5Instance.noise(blob.noiseOffset) - 0.5) * 0.5;
+            const noiseY = (this.p5Instance.noise(blob.noiseOffset + 1000) - 0.5) * 0.5;
+            blob.vx += noiseX;
+            blob.vy += noiseY;
+            
+            // Update rotation
             blob.angle += blob.rotationSpeed;
-        }
+        });
+    }
+    
+    drawBackgroundParticles() {
+        if (!this.p5Instance) return;
+        
+        const p = this.p5Instance;
+        
+        this.particles.forEach(particle => {
+            // Update position with Perlin noise
+            particle.noiseOffset += 0.005;
+            const noiseX = (p.noise(particle.noiseOffset) - 0.5) * 0.2;
+            const noiseY = (p.noise(particle.noiseOffset + 1000) - 0.5) * 0.2;
+            
+            particle.x += particle.vx + noiseX;
+            particle.y += particle.vy + noiseY;
+            
+            // Wrap around screen
+            if (particle.x < 0) particle.x = p.width;
+            if (particle.x > p.width) particle.x = 0;
+            if (particle.y < 0) particle.y = p.height;
+            if (particle.y > p.height) particle.y = 0;
+            
+            // Twinkling effect
+            const twinkle = Math.sin(Date.now() * 0.003 + particle.noiseOffset) * 0.5 + 0.5;
+            const alpha = particle.alpha * twinkle;
+            
+            // Draw particle
+            p.fill(255, 255, 255, alpha * 255);
+            p.noStroke();
+            p.ellipse(particle.x, particle.y, particle.size, particle.size);
+        });
     }
     
     drawBlobs() {
-        // FIXED: Ensure blobs are actually drawn
-        if (!this.blobs || this.blobs.length === 0) {
-            console.log('🫧 No blobs to draw');
-            return;
-        }
+        if (!this.p5Instance) return;
         
-        console.log(`🎨 Drawing ${this.blobs.length} blobs`);
+        const p = this.p5Instance;
         
-        for (let blob of this.blobs) {
-            this.drawOrganicBlob(blob);
-        }
-    }
-    
-    drawOrganicBlob(blob) {
-        if (!this.p || !blob) {
-            console.warn('⚠️ Cannot draw blob - missing p5 instance or blob data');
-            return;
-        }
-        
-        const p = this.p;
-        const palette = this.colorPalettes[blob.category];
-        if (!palette) {
-            console.warn(`⚠️ No color palette for category: ${blob.category}`);
-            return;
-        }
-        
-        // Get color for this blob
-        const colorIndex = Math.floor(blob.colorSeed * palette.colors.length);
-        const color = palette.colors[colorIndex];
-        
-        // Add breathing effect
-        const breathingScale = 1 + Math.sin(this.time * 2 + blob.id * 0.5) * 0.05;
-        const currentRadius = blob.radius * breathingScale;
-        
-        // Set fill color with proper alpha
-        p.fill(color.r, color.g, color.b, color.a * 255); // P5.js uses 0-255 for alpha
-        p.noStroke();
-        
-        // Save transformation state
-        p.push();
-        
-        // Move to blob position
-        p.translate(blob.x, blob.y);
-        
-        // Rotate the blob for more organic feel
-        p.rotate(blob.angle + this.change);
-        
-        // Begin organic shape
-        p.beginShape();
-        
-        // Create organic blob using noise and vertices (like the article)
-        let off = blob.noiseOffset;
-        for (let i = 0; i < p.TWO_PI; i += 0.1) {
-            // Use Perlin noise to create organic distortion
-            let offset = p.map(p.noise(off, this.change), 0, 1, -blob.roughness, blob.roughness);
-            let r = currentRadius + offset;
-            let x = r * p.cos(i);
-            let y = r * p.sin(i);
-            p.vertex(x, y);
-            off += 0.1;
-        }
-        
-        p.endShape(p.CLOSE);
-        
-        // Add inner glow effect
-        p.fill(color.r, color.g, color.b, color.a * 0.2 * 255);
-        p.beginShape();
-        off = blob.noiseOffset;
-        for (let i = 0; i < p.TWO_PI; i += 0.2) {
-            let offset = p.map(p.noise(off, this.change), 0, 1, -blob.roughness * 0.5, blob.roughness * 0.5);
-            let r = currentRadius * 0.6 + offset;
-            let x = r * p.cos(i);
-            let y = r * p.sin(i);
-            p.vertex(x, y);
-            off += 0.1;
-        }
-        p.endShape(p.CLOSE);
-        
-        // Restore transformation state
-        p.pop();
-        
-        console.log(`🎨 Drew blob ${blob.id} at (${Math.round(blob.x)}, ${Math.round(blob.y)}) with radius ${Math.round(currentRadius)}`);
+        this.blobs.forEach(blob => {
+            const color = this.sentimentColors[blob.category] || [1, 1, 1];
+            
+            // Breathing animation
+            const breathe = Math.sin(Date.now() * 0.002 + blob.id * 0.1) * 0.1 + 1;
+            const currentRadius = blob.radius * breathe;
+            
+            // Main blob with glow effect
+            p.fill(color[0] * 255, color[1] * 255, color[2] * 255, 180);
+            p.noStroke();
+            p.ellipse(blob.x, blob.y, currentRadius * 2, currentRadius * 2);
+            
+            // Inner glow
+            p.fill(255, 255, 255, 80);
+            p.ellipse(blob.x, blob.y, currentRadius, currentRadius);
+            
+            // Outer glow
+            p.fill(color[0] * 255, color[1] * 255, color[2] * 255, 40);
+            p.ellipse(blob.x, blob.y, currentRadius * 2.5, currentRadius * 2.5);
+        });
     }
     
     handleInteraction(x, y) {
-        console.log('🎯 Interaction at:', x, y);
-        
-        // Check if we clicked on a blob
+        // Find clicked blob
         const clickedBlob = this.getBlobAt(x, y);
         
-        // Remove existing tooltip if clicking elsewhere or same blob
-        if (this.activeTooltip) {
-            this.hideTooltip();
-        }
-        
         if (clickedBlob) {
-            console.log('🫧 Clicked blob:', clickedBlob.category);
-            
-            // If clicking the same blob again, just close tooltip
-            if (this.lastClickedBlob && this.lastClickedBlob.id === clickedBlob.id) {
-                this.lastClickedBlob = null;
-                return;
-            }
-            
-            this.lastClickedBlob = clickedBlob;
-            
-            // Show blob details
+            // Show tooltip
             this.showBlobDetails(clickedBlob, x, y);
             
-            // Add physics impulse to clicked blob
-            const impulseStrength = 3;
-            clickedBlob.vx += (Math.random() - 0.5) * impulseStrength;
-            clickedBlob.vy += (Math.random() - 0.5) * impulseStrength;
-        } else {
-            this.lastClickedBlob = null;
+            // Add impulse
+            clickedBlob.vx += (Math.random() - 0.5) * 5;
+            clickedBlob.vy += (Math.random() - 0.5) * 5;
+            
+            this.lastClickedBlob = clickedBlob;
         }
         
-        // Create temporary ripple effect
+        // Create ripple effect
         this.createRippleEffect(x, y);
     }
     
     showBlobDetails(blob, x, y) {
-        // Create a single tooltip that replaces any existing one
+        // Remove existing tooltip
+        this.hideTooltip();
+        
         const tooltip = document.createElement('div');
         tooltip.className = 'blob-tooltip';
-        tooltip.style.position = 'fixed';
-        tooltip.style.left = `${Math.min(x + 10, window.innerWidth - 320)}px`;
-        tooltip.style.top = `${Math.max(y - 10, 10)}px`;
-        tooltip.style.background = 'rgba(21, 21, 21, 0.95)';
-        tooltip.style.color = 'white';
-        tooltip.style.padding = '16px';
-        tooltip.style.borderRadius = '12px';
-        tooltip.style.fontSize = '14px';
-        tooltip.style.maxWidth = '300px';
-        tooltip.style.zIndex = '2000';
-        tooltip.style.pointerEvents = 'auto';
-        tooltip.style.backdropFilter = 'blur(10px)';
-        tooltip.style.border = '1px solid rgba(255, 215, 0, 0.3)';
-        tooltip.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.5)';
+        tooltip.style.cssText = `
+            position: absolute;
+            background: rgba(21, 21, 21, 0.95);
+            color: white;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            max-width: 300px;
+            z-index: 2000;
+            pointer-events: auto;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            left: ${Math.min(x + 10, window.innerWidth - 320)}px;
+            top: ${Math.max(y - 10, 10)}px;
+        `;
         
         const category = blob.category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
         const confidence = Math.round((blob.confidence || 0.5) * 100);
+        const createdDate = new Date(blob.created_at).toLocaleDateString();
         
         tooltip.innerHTML = `
-            <div style="font-weight: 600; margin-bottom: 12px; color: #FFD700; font-size: 16px;">
+            <div style="font-weight: 600; margin-bottom: 8px; color: #FFD700;">
                 ${category}
             </div>
             <div style="margin-bottom: 8px;">
@@ -524,102 +589,92 @@ class EmotionVisualizer {
             <div style="margin-bottom: 8px;">
                 <strong>Confidence:</strong> ${confidence}%
             </div>
-            <div style="margin-bottom: 12px;">
+            <div style="margin-bottom: 8px;">
+                <strong>Created:</strong> ${createdDate}
+            </div>
+            <div style="margin-bottom: 8px;">
                 <strong>Message:</strong><br>
-                <em style="color: rgba(255, 255, 255, 0.8);">"${blob.text ? blob.text.substring(0, 150) + (blob.text.length > 150 ? '...' : '') : 'No text available'}"</em>
+                <em style="color: rgba(255, 255, 255, 0.8);">"${blob.text.substring(0, 150)}${blob.text.length > 150 ? '...' : ''}"</em>
             </div>
-            <div style="font-size: 12px; color: rgba(255, 255, 255, 0.6); border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 8px;">
-                Shared ${new Date(blob.created_at).toLocaleString()}
-            </div>
-            <button onclick="window.app.visualizer.hideTooltip()" 
-                    style="position: absolute; top: 8px; right: 8px; background: none; border: none; color: rgba(255, 255, 255, 0.6); font-size: 18px; cursor: pointer; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">×</button>
+            <button class="close-btn" style="position: absolute; top: 8px; right: 8px; background: none; border: none; color: rgba(255, 255, 255, 0.6); font-size: 18px; cursor: pointer; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">×</button>
         `;
         
         document.body.appendChild(tooltip);
-        this.activeTooltip = tooltip;
         
-        // Set up auto-hide functionality
+        // Setup auto-hide functionality
         this.setupTooltipAutoHide(tooltip);
         
-        // Animate tooltip entrance with anime.js
-        if (window.anime) {
-            window.anime({
-                targets: tooltip,
-                opacity: [0, 1],
-                scale: [0.8, 1],
-                duration: 300,
-                easing: 'easeOutCubic'
+        // Close button functionality
+        const closeBtn = tooltip.querySelector('.close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.hideTooltip();
             });
         }
+        
+        console.log('💬 Showing blob details for:', blob.category);
     }
     
     setupTooltipAutoHide(tooltip) {
-        // Clear any existing timer
-        if (this.tooltipHideTimer) {
-            clearTimeout(this.tooltipHideTimer);
-        }
+        let hideTimer = null;
         
-        // Set up mouse enter/leave events for auto-hide
         const startHideTimer = () => {
-            this.tooltipHideTimer = setTimeout(() => {
-                this.hideTooltip();
-            }, 3000); // Hide after 3 seconds of no interaction
+            hideTimer = setTimeout(() => {
+                if (tooltip.parentElement) {
+                    this.hideTooltip();
+                }
+            }, 3000); // 3 seconds
         };
         
         const cancelHideTimer = () => {
-            if (this.tooltipHideTimer) {
-                clearTimeout(this.tooltipHideTimer);
-                this.tooltipHideTimer = null;
+            if (hideTimer) {
+                clearTimeout(hideTimer);
+                hideTimer = null;
             }
         };
         
         // Start the timer immediately
         startHideTimer();
         
-        // Cancel timer when mouse enters tooltip
+        // Cancel timer on mouse enter, restart on mouse leave
         tooltip.addEventListener('mouseenter', cancelHideTimer);
-        
-        // Restart timer when mouse leaves tooltip
         tooltip.addEventListener('mouseleave', startHideTimer);
         
-        console.log('🕐 Tooltip auto-hide timer set for 3 seconds');
+        // Store timer reference for cleanup
+        tooltip._hideTimer = hideTimer;
+        tooltip._cancelHideTimer = cancelHideTimer;
     }
     
     hideTooltip() {
-        if (this.activeTooltip) {
-            // Clear any hide timer
-            if (this.tooltipHideTimer) {
-                clearTimeout(this.tooltipHideTimer);
-                this.tooltipHideTimer = null;
+        const existingTooltips = document.querySelectorAll('.blob-tooltip');
+        existingTooltips.forEach(tooltip => {
+            // Clean up timers
+            if (tooltip._cancelHideTimer) {
+                tooltip._cancelHideTimer();
             }
             
-            // Animate out and remove
+            // Remove with animation if anime.js is available
             if (window.anime) {
                 window.anime({
-                    targets: this.activeTooltip,
-                    opacity: [1, 0],
-                    scale: [1, 0.8],
+                    targets: tooltip,
+                    opacity: 0,
+                    scale: 0.8,
                     duration: 200,
-                    easing: 'easeInCubic',
+                    easing: 'easeOutQuad',
                     complete: () => {
-                        if (this.activeTooltip) {
-                            this.activeTooltip.remove();
-                            this.activeTooltip = null;
+                        if (tooltip.parentElement) {
+                            tooltip.remove();
                         }
                     }
                 });
             } else {
-                this.activeTooltip.remove();
-                this.activeTooltip = null;
+                tooltip.remove();
             }
-            
-            this.lastClickedBlob = null;
-            console.log('🫥 Tooltip hidden');
-        }
+        });
     }
     
     createRippleEffect(x, y) {
-        // Create a temporary ripple that fades out
         const ripple = {
             x: x,
             y: y,
@@ -627,43 +682,37 @@ class EmotionVisualizer {
             maxRadius: 100,
             opacity: 1,
             createdAt: Date.now(),
-            duration: 800 // Shorter duration
+            duration: 1000
         };
         
         this.ripples.push(ripple);
-        console.log('💫 Created temporary ripple at:', x, y);
+        console.log('💫 Created ripple effect at', x, y);
     }
     
     drawRipples() {
-        if (!this.p) return;
+        if (!this.p5Instance) return;
         
-        const p = this.p;
+        const p = this.p5Instance;
         const currentTime = Date.now();
         
-        for (let ripple of this.ripples) {
+        this.ripples.forEach(ripple => {
             const elapsed = currentTime - ripple.createdAt;
             const progress = elapsed / ripple.duration;
             
             if (progress < 1) {
-                // Calculate ripple properties with easing
-                const easeOut = 1 - Math.pow(1 - progress, 3);
-                ripple.radius = easeOut * ripple.maxRadius;
-                ripple.opacity = 1 - progress; // Fade out
+                ripple.radius = progress * ripple.maxRadius;
+                ripple.opacity = 1 - progress;
                 
-                // Draw multiple ripple rings
                 p.noFill();
-                
-                // Outer ripple
                 p.stroke(255, 215, 0, ripple.opacity * 0.4 * 255);
                 p.strokeWeight(2);
                 p.circle(ripple.x, ripple.y, ripple.radius * 2);
                 
-                // Inner ripple
                 p.stroke(255, 255, 102, ripple.opacity * 0.6 * 255);
                 p.strokeWeight(1);
                 p.circle(ripple.x, ripple.y, ripple.radius);
             }
-        }
+        });
     }
     
     cleanupRipples() {
@@ -675,52 +724,40 @@ class EmotionVisualizer {
             return elapsed < ripple.duration;
         });
         
-        // Log cleanup if ripples were removed
         if (this.ripples.length < initialLength) {
             console.log(`🧹 Cleaned up ${initialLength - this.ripples.length} expired ripples`);
         }
     }
     
     addBlob(blobData) {
-        console.log('🫧 Adding enhanced organic blob:', blobData.category, 'with data:', {
+        console.log('🫧 Adding GLSL-enhanced blob:', blobData.category, 'with data:', {
             confidence: blobData.confidence,
             score: blobData.score,
             confidenceType: typeof blobData.confidence,
             scoreType: typeof blobData.score
         });
         
-        if (!this.p) {
+        if (!this.p5Instance) {
             console.warn('⚠️ P5.js not ready, queuing blob');
             setTimeout(() => this.addBlob(blobData), 100);
             return;
         }
         
-        // Calculate size and roughness with proper validation
+        // Calculate size with proper validation
         const calculatedRadius = this.calculateBlobSize(blobData);
-        const calculatedRoughness = this.calculateRoughness(blobData);
         
-        console.log('📏 Calculated blob properties:', {
-            radius: calculatedRadius,
-            roughness: calculatedRoughness,
-            isRadiusValid: !isNaN(calculatedRadius),
-            isRoughnessValid: !isNaN(calculatedRoughness)
-        });
-        
-        // Create enhanced organic blob object with physics
         const blob = {
             id: blobData.id || `blob_${this.blobIdCounter++}`,
-            x: Math.random() * (this.p.width - 200) + 100,
-            y: Math.random() * (this.p.height - 200) + 150,
-            vx: (Math.random() - 0.5) * 1, // Reduced initial velocity
-            vy: (Math.random() - 0.5) * 1,
+            x: Math.random() * (window.innerWidth - 200) + 100,
+            y: Math.random() * (window.innerHeight - 300) + 200,
+            vx: (Math.random() - 0.5) * 2,
+            vy: (Math.random() - 0.5) * 2,
             radius: calculatedRadius,
-            roughness: calculatedRoughness,
-            angle: Math.random() * this.p.TWO_PI,
+            angle: Math.random() * Math.PI * 2,
             rotationSpeed: (Math.random() - 0.5) * 0.01,
             noiseOffset: Math.random() * 1000,
-            colorSeed: Math.random(),
             
-            // Data from analysis - with proper fallbacks
+            // Data from analysis
             category: blobData.category || 'reflective_neutral',
             speaker: blobData.speaker_name || blobData.speaker || 'Unknown',
             text: blobData.text || '',
@@ -729,19 +766,12 @@ class EmotionVisualizer {
             created_at: blobData.created_at || new Date().toISOString()
         };
         
-        // Final validation check
-        if (isNaN(blob.radius) || isNaN(blob.roughness)) {
-            console.error('❌ Invalid blob properties detected:', {
-                radius: blob.radius,
-                roughness: blob.roughness,
-                originalData: blobData
-            });
-            // Set safe fallback values
+        // Final validation
+        if (isNaN(blob.radius)) {
+            console.error('❌ Invalid blob radius detected, using fallback');
             blob.radius = 35;
-            blob.roughness = 6;
         }
         
-        // Add to blobs array
         this.blobs.push(blob);
         
         // Remove oldest blob if we have too many
@@ -749,10 +779,13 @@ class EmotionVisualizer {
             this.removeOldestBlob();
         }
         
-        // Animate blob entrance with anime.js
+        // Update background sentiment color
+        this.updateBackgroundSentiment();
+        
+        // Animate blob entrance
         if (window.anime) {
             const originalRadius = blob.radius;
-            blob.radius = 0; // Start small
+            blob.radius = 0;
             window.anime({
                 targets: blob,
                 radius: originalRadius,
@@ -761,41 +794,54 @@ class EmotionVisualizer {
             });
         }
         
-        console.log(`🎨 Enhanced organic blob created: ${blob.category} at (${Math.round(blob.x)}, ${Math.round(blob.y)}) with radius ${Math.round(blob.radius)}`);
+        console.log(`🎨 GLSL-enhanced blob created: ${blob.category} at (${Math.round(blob.x)}, ${Math.round(blob.y)}) with radius ${Math.round(blob.radius)}`);
     }
     
     calculateBlobSize(blobData) {
-        // Ensure we have valid numeric values, with fallbacks
         const confidence = (typeof blobData.confidence === 'number' && !isNaN(blobData.confidence)) ? blobData.confidence : 0.5;
         const score = (typeof blobData.score === 'number' && !isNaN(blobData.score)) ? blobData.score : 0;
         
-        // Base size between 25-60 pixels
         const baseSize = 30;
         const confidenceMultiplier = confidence * 25;
         const intensityMultiplier = Math.abs(score) * 20;
         
         const calculatedSize = Math.max(25, Math.min(60, baseSize + confidenceMultiplier + intensityMultiplier));
-        
-        // Final safety check to ensure we never return NaN
         return isNaN(calculatedSize) ? 35 : calculatedSize;
     }
     
-    calculateRoughness(blobData) {
-        // Ensure we have valid numeric values, with fallbacks
-        const score = (typeof blobData.score === 'number' && !isNaN(blobData.score)) ? blobData.score : 0;
+    updateBackgroundSentiment() {
+        if (this.blobs.length === 0) return;
         
-        // Roughness based on emotion intensity
-        const baseRoughness = 6;
-        const intensityMultiplier = Math.abs(score) * 8;
+        // Calculate dominant sentiment
+        const sentimentCounts = {};
+        this.blobs.forEach(blob => {
+            sentimentCounts[blob.category] = (sentimentCounts[blob.category] || 0) + 1;
+        });
         
-        const calculatedRoughness = baseRoughness + intensityMultiplier;
+        const dominantSentiment = Object.keys(sentimentCounts).reduce((a, b) => 
+            sentimentCounts[a] > sentimentCounts[b] ? a : b
+        );
         
-        // Final safety check to ensure we never return NaN
-        return isNaN(calculatedRoughness) ? 6 : calculatedRoughness;
+        // Smoothly transition to new color
+        const targetColor = this.sentimentColors[dominantSentiment] || [1, 1, 1];
+        
+        if (window.anime) {
+            window.anime({
+                targets: this.sentimentColor,
+                0: targetColor[0],
+                1: targetColor[1],
+                2: targetColor[2],
+                duration: 2000,
+                easing: 'easeInOutQuad'
+            });
+        } else {
+            this.sentimentColor = targetColor;
+        }
+        
+        console.log('🎨 Updated background sentiment to:', dominantSentiment);
     }
     
     getBlobAt(x, y) {
-        // Check if point is inside any blob (check from front to back)
         for (let i = this.blobs.length - 1; i >= 0; i--) {
             const blob = this.blobs[i];
             const distance = Math.sqrt((x - blob.x) ** 2 + (y - blob.y) ** 2);
@@ -804,11 +850,6 @@ class EmotionVisualizer {
             }
         }
         return null;
-    }
-    
-    removeBlob(blobId) {
-        this.blobs = this.blobs.filter(blob => blob.id !== blobId);
-        console.log('🗑️ Removed blob:', blobId);
     }
     
     removeOldestBlob() {
@@ -821,8 +862,9 @@ class EmotionVisualizer {
     clearAllBlobs() {
         this.blobs = [];
         this.ripples = [];
-        this.hideTooltip(); // Hide any active tooltip
+        this.hideTooltip();
         this.lastClickedBlob = null;
+        this.sentimentColor = [1, 1, 1]; // Reset to white
         console.log('🧹 Cleared all blobs and ripples');
     }
     
@@ -846,50 +888,6 @@ class EmotionVisualizer {
         }
         
         return counts;
-    }
-    
-    drawDebugInfo() {
-        if (!this.p) return;
-        
-        const p = this.p;
-        
-        // Debug text
-        p.fill(255, 255, 255, 0.8 * 255);
-        p.noStroke();
-        p.textSize(14);
-        p.textAlign(p.LEFT, p.TOP);
-        
-        const debugText = [
-            `Blobs: ${this.blobs.length}`,
-            `Particles: ${this.particles.length}`,
-            `Ripples: ${this.ripples.length}`,
-            `Change: ${this.change.toFixed(3)}`,
-            `Canvas: ${p.width}x${p.height}`
-        ];
-        
-        for (let i = 0; i < debugText.length; i++) {
-            p.text(debugText[i], 10, 80 + i * 20);
-        }
-    }
-    
-    addTestBlob() {
-        console.log('🧪 Adding test blob for verification');
-        
-        const testBlob = {
-            id: 'test_blob_' + Date.now(),
-            speaker_name: 'Test Speaker',
-            speaker_id: 'test_speaker',
-            text: 'This is a test blob to verify the enhanced organic visualization with physics is working correctly.',
-            category: 'hope',
-            score: 0.7,
-            confidence: 0.8,
-            intensity: 0.6,
-            label: 'positive',
-            explanation: 'Test blob for enhanced organic visualization verification',
-            created_at: new Date().toISOString()
-        };
-        
-        this.addBlob(testBlob);
     }
 }
 

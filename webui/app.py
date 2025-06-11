@@ -61,6 +61,11 @@ def main_app():
     """Main application page route"""
     return render_template('app.html')
 
+@app.route('/debug')
+def debug():
+    """Debug page for testing GLSL visualization"""
+    return render_template('debug.html')
+
 @app.route('/api/get_all_blobs')
 def get_all_blobs():
     """Get all sentiment analysis data for visualization."""

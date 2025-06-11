@@ -1,70 +1,91 @@
 /**
- * Enhanced Hopes & Sorrows Web Application
- * Integrates with the new organic blob visualizer and provides comprehensive UI management
+ * Hopes & Sorrows - Main Application Controller
+ * Enhanced with GLSL-based emotion visualization
  */
 
-class HopesAndSorrowsApp {
+class HopesSorrowsApp {
     constructor() {
-        // Core components
+        // Core properties
         this.socket = null;
         this.mediaRecorder = null;
         this.audioChunks = [];
         this.isRecording = false;
         this.recordingTimer = null;
-        this.recordingDuration = 44; // seconds
-        this.currentTime = 0;
+        this.recordingStartTime = null;
+        this.maxRecordingTime = 44000; // 44 seconds
+        this.sessionId = this.generateSessionId();
         
-        // UI elements
-        this.recordBtn = null;
-        this.statusPanel = null;
-        this.processingPanel = null;
-        this.errorPanel = null;
-        this.timer = null;
-        this.timerProgress = null;
-        this.timerText = null;
-        this.instructionsPanel = null;
-        this.blobInfoPanel = null;
-        this.blobInfoToggle = null;
-        this.analysisConfirmation = null;
-        this.loadingOverlay = null;
+        // UI Elements
+        this.elements = {};
         
-        // Visualization
-        this.visualizer = null;
+        // Enhanced Emotion Visualizer (GLSL-based)
+        this.emotionVisualizer = null;
         
-        // State management
-        this.isInitialized = false;
-        this.lastAnalysisData = null;
+        // Blob management
+        this.currentTooltip = null;
+        this.tooltipTimer = null;
         
-        this.initializeApp();
+        // Status management
+        this.currentStatus = 'ready';
+        this.statusMessages = {
+            ready: {
+                main: 'Ready to Record',
+                sub: 'Click to share your emotional journey'
+            },
+            recording: {
+                main: 'Recording...',
+                sub: 'Share your hopes and sorrows'
+            },
+            processing: {
+                main: 'Analyzing...',
+                sub: 'Understanding your emotions'
+            },
+            complete: {
+                main: '✨ Analysis Complete!',
+                sub: '🎉 Your emotions have been captured!'
+            },
+            error: {
+                main: 'Something went wrong',
+                sub: 'Please try again'
+            }
+        };
+        
+        // Initialize the application
+        this.init();
     }
     
-    async initializeApp() {
-        console.log('🚀 Initializing Hopes & Sorrows App');
+    /**
+     * Initialize the application
+     */
+    async init() {
+        console.log('🚀 Initializing Hopes & Sorrows App with GLSL Enhancement...');
         
         try {
+            // Show loading overlay
+            this.showLoadingOverlay();
+            
             // Initialize UI elements
-            this.initializeUIElements();
+            this.initializeElements();
             
             // Initialize WebSocket connection
-            await this.initializeWebSocket();
+            await this.initializeSocket();
             
-            // Initialize visualization
-            this.initializeVisualizer();
-            
-            // Set up event listeners
-            this.setupEventListeners();
+            // Initialize GLSL-Enhanced Emotion Visualizer
+            await this.initializeVisualizer();
             
             // Load existing blobs
             await this.loadExistingBlobs();
             
+            // Initialize recording functionality
+            this.initializeRecording();
+            
+            // Initialize UI interactions
+            this.initializeUI();
+            
             // Hide loading overlay
             this.hideLoadingOverlay();
             
-            // Show instructions on first visit
-            this.showInstructions();
-            
-            this.isInitialized = true;
-            console.log('✅ App initialization complete');
+            console.log('✅ App initialization complete!');
             
         } catch (error) {
             console.error('❌ App initialization failed:', error);
@@ -73,47 +94,69 @@ class HopesAndSorrowsApp {
         }
     }
     
-    initializeUIElements() {
-        // Recording interface elements
-        this.recordBtn = document.getElementById('record-button');
-        this.statusPanel = document.getElementById('recording-status');
-        this.processingPanel = document.getElementById('processing-status');
-        this.errorPanel = document.getElementById('error-panel');
-        this.timer = document.getElementById('timer');
-        this.timerProgress = document.getElementById('timer-progress');
-        this.timerText = document.getElementById('timer-seconds');
+    /**
+     * Initialize UI elements
+     */
+    initializeElements() {
+        console.log('🎯 Initializing UI elements...');
         
-        // UI panels
-        this.instructionsPanel = document.getElementById('instructions');
-        this.blobInfoPanel = document.getElementById('blob-info');
-        this.blobInfoToggle = document.getElementById('blob-info-toggle');
-        this.analysisConfirmation = document.getElementById('analysis-confirmation');
-        this.loadingOverlay = document.getElementById('loading-overlay');
+        // Core elements
+        this.elements = {
+            // Visualization
+            visualizationContainer: document.getElementById('visualization-container'),
+            glslCanvas: document.getElementById('glsl-canvas'),
+            p5Container: document.getElementById('p5-container'),
+            
+            // Recording interface
+            recordBtn: document.getElementById('record-button'),
+            statusText: document.querySelector('.status-text'),
+            statusSubtitle: document.querySelector('.status-subtitle'),
+            timer: document.querySelector('.timer'),
+            timerText: document.querySelector('#timer-seconds'),
+            timerProgress: document.querySelector('#timer-progress'),
+            
+            // Panels
+            processingPanel: document.querySelector('.processing-panel'),
+            errorPanel: document.querySelector('.error-panel'),
+            blobInfoPanel: document.querySelector('.blob-info-panel'),
+            blobInfoToggle: document.querySelector('.blob-info-toggle'),
+            analysisConfirmation: document.querySelector('.analysis-confirmation'),
+            
+            // Loading
+            loadingOverlay: document.querySelector('.loading-overlay'),
+            
+            // Stats
+            blobCount: document.querySelector('#blob-counter'),
+            categoryStats: document.querySelectorAll('.category-stat .category-count')
+        };
         
         // Validate required elements
         const requiredElements = [
-            'recordBtn', 'statusPanel', 'processingPanel', 'errorPanel',
-            'timer', 'timerProgress', 'timerText', 'instructionsPanel',
-            'blobInfoPanel', 'blobInfoToggle', 'analysisConfirmation', 'loadingOverlay'
+            'visualizationContainer', 'recordBtn', 'statusText', 
+            'loadingOverlay', 'blobInfoPanel'
         ];
         
         for (const elementName of requiredElements) {
-            if (!this[elementName]) {
-                console.warn(`⚠️ UI element not found: ${elementName}`);
+            if (!this.elements[elementName]) {
+                throw new Error(`Required element not found: ${elementName}`);
             }
         }
         
-        console.log('🎨 UI elements initialized');
+        console.log('✅ UI elements initialized');
     }
     
-    async initializeWebSocket() {
+    /**
+     * Initialize WebSocket connection
+     */
+    async initializeSocket() {
         return new Promise((resolve, reject) => {
+            console.log('🔌 Initializing WebSocket connection...');
+            
             try {
-                // Initialize Socket.IO connection
                 this.socket = io();
                 
                 this.socket.on('connect', () => {
-                    console.log('🔌 WebSocket connected');
+                    console.log('✅ WebSocket connected');
                     resolve();
                 });
                 
@@ -121,28 +164,9 @@ class HopesAndSorrowsApp {
                     console.log('🔌 WebSocket disconnected');
                 });
                 
-                this.socket.on('connected', (data) => {
-                    console.log('✅ Server connection confirmed:', data.message);
-                });
-                
-                // Handle structured messages with type field
-                this.socket.on('message', (data) => {
-                    this.handleWebSocketMessage({ data: JSON.stringify(data) });
-                });
-                
-                // Handle direct blob_added events from Flask
-                this.socket.on('blob_added', (blobData) => {
-                    console.log('🫧 Direct blob_added event:', blobData);
-                    this.handleBlobAdded(blobData);
-                });
-                
-                // Handle visualization cleared event
-                this.socket.on('visualization_cleared', () => {
-                    console.log('🧹 Visualization cleared');
-                    if (this.visualizer) {
-                        this.visualizer.clearAllBlobs();
-                        this.updateBlobInfo();
-                    }
+                this.socket.on('analysis_complete', (data) => {
+                    console.log('📊 Analysis complete:', data);
+                    this.handleAnalysisComplete(data);
                 });
                 
                 this.socket.on('error', (error) => {
@@ -150,230 +174,187 @@ class HopesAndSorrowsApp {
                     reject(error);
                 });
                 
+                // Set timeout for connection
+                setTimeout(() => {
+                    if (!this.socket.connected) {
+                        reject(new Error('WebSocket connection timeout'));
+                    }
+                }, 5000);
+                
             } catch (error) {
+                console.error('❌ WebSocket initialization failed:', error);
                 reject(error);
             }
         });
     }
     
-    initializeVisualizer() {
+    /**
+     * Initialize GLSL-Enhanced Emotion Visualizer
+     */
+    async initializeVisualizer() {
+        console.log('🎨 Initializing GLSL-Enhanced Emotion Visualizer...');
+        
         try {
-            // Initialize the new emotion visualizer
-            this.visualizer = new EmotionVisualizer();
-            
-            if (this.visualizer.initializeCanvas()) {
-                console.log('🎨 Emotion visualizer initialized');
-                
-                // Make visualizer globally accessible for blob interactions
-                window.emotionVisualizer = this.visualizer;
-            } else {
-                throw new Error('Failed to initialize visualization canvas');
+            // Check if EmotionVisualizer class is available
+            if (typeof EmotionVisualizer === 'undefined') {
+                throw new Error('EmotionVisualizer class not found');
             }
+            
+            // Initialize the visualizer
+            this.emotionVisualizer = new EmotionVisualizer();
+            
+            // Initialize with container
+            await this.emotionVisualizer.init(this.elements.visualizationContainer);
+            
+            console.log('✅ GLSL-Enhanced Emotion Visualizer initialized');
             
         } catch (error) {
             console.error('❌ Visualizer initialization failed:', error);
-            this.showError('Visualization failed to load. Some features may not work properly.');
+            
+            // Show fallback message
+            this.showWebGLFallback();
+            throw error;
         }
     }
     
-    setupEventListeners() {
-        // Record button
-        if (this.recordBtn) {
-            this.recordBtn.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent event from reaching canvas
-                this.toggleRecording();
-            });
+    /**
+     * Load existing blobs from the database
+     */
+    async loadExistingBlobs() {
+        console.log('📊 Loading existing emotion blobs...');
+        
+        try {
+            const response = await fetch('/api/get_all_blobs');
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.success && data.blobs) {
+                console.log(`📊 Found ${data.blobs.length} existing blobs`);
+                
+                // Add blobs to visualizer with staggered timing
+                data.blobs.forEach((blobData, index) => {
+                    setTimeout(() => {
+                        this.emotionVisualizer.addBlob(blobData);
+                    }, index * 100); // 100ms delay between each blob
+                });
+                
+                // Update stats
+                this.updateBlobStats(data.blobs);
+                
+                console.log('✅ Existing blobs loaded successfully');
+            } else {
+                console.log('📊 No existing blobs found');
+            }
+            
+        } catch (error) {
+            console.error('❌ Failed to load existing blobs:', error);
+            // Don't throw - app can still function without existing blobs
+        }
+    }
+    
+    /**
+     * Initialize recording functionality
+     */
+    initializeRecording() {
+        console.log('🎤 Initializing recording functionality...');
+        
+        if (!this.elements.recordBtn) {
+            console.error('❌ Record button not found');
+            return;
         }
         
-        // Instructions close button
-        const instructionsClose = document.querySelector('.instructions-close');
-        if (instructionsClose) {
-            instructionsClose.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent event from reaching canvas
-                this.hideInstructions();
-            });
-        }
+        this.elements.recordBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (this.isRecording) {
+                this.stopRecording();
+            } else {
+                this.startRecording();
+            }
+        });
+        
+        console.log('✅ Recording functionality initialized');
+    }
+    
+    /**
+     * Initialize UI interactions
+     */
+    initializeUI() {
+        console.log('🎯 Initializing UI interactions...');
         
         // Blob info toggle
-        if (this.blobInfoToggle) {
-            this.blobInfoToggle.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent event bubbling
+        if (this.elements.blobInfoToggle) {
+            this.elements.blobInfoToggle.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 this.toggleBlobInfo();
             });
         }
         
-        // Blob info panel - prevent clicks from propagating to canvas
-        if (this.blobInfoPanel) {
-            this.blobInfoPanel.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent clicks from reaching the canvas
-            });
-        }
-        
-        // Recording interface - prevent clicks from propagating to canvas
-        const recordingInterface = document.querySelector('.recording-interface');
-        if (recordingInterface) {
-            recordingInterface.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent clicks from reaching the canvas
-            });
-        }
-        
-        // Navigation bar - prevent clicks from propagating to canvas
-        const navBar = document.querySelector('.nav-bar');
-        if (navBar) {
-            navBar.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent clicks from reaching the canvas
-            });
-        }
-        
-        // Analysis confirmation buttons
-        const analysisViewBtn = document.getElementById('analysis-view-btn');
-        const analysisContinueBtn = document.getElementById('analysis-continue-btn');
-        
-        if (analysisViewBtn) {
-            analysisViewBtn.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent event from reaching canvas
-                this.hideAnalysisConfirmation();
-                this.showBlobInfo();
-            });
-        }
-        
-        if (analysisContinueBtn) {
-            analysisContinueBtn.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent event from reaching canvas
-                this.hideAnalysisConfirmation();
+        // Prevent blob info panel clicks from reaching canvas
+        if (this.elements.blobInfoPanel) {
+            this.elements.blobInfoPanel.addEventListener('click', (e) => {
+                e.stopPropagation();
             });
         }
         
         // Error panel dismiss
         const errorDismiss = document.querySelector('.error-dismiss');
         if (errorDismiss) {
-            errorDismiss.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent event from reaching canvas
+            errorDismiss.addEventListener('click', () => {
                 this.hideError();
             });
         }
         
-        // Analysis confirmation panel - prevent clicks from propagating
-        if (this.analysisConfirmation) {
-            this.analysisConfirmation.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent clicks from reaching the canvas
-            });
-        }
-        
-        // Instructions panel - prevent clicks from propagating
-        if (this.instructionsPanel) {
-            this.instructionsPanel.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent clicks from reaching the canvas
-            });
-        }
-        
-        // WebSocket events
-        if (this.socket) {
-            this.socket.on('blob_added', (data) => this.handleBlobAdded(data));
-            this.socket.on('analysis_complete', (data) => this.handleAnalysisComplete(data));
-            this.socket.on('analysis_error', (data) => this.handleAnalysisError(data.message));
-        }
-        
-        console.log('🎛️ Event listeners setup complete with proper event propagation control');
-    }
-    
-    async loadExistingBlobs() {
-        try {
-            console.log('🔄 Loading existing blobs from database...');
-            
-            const response = await fetch('/api/get_all_blobs');
-            if (!response.ok) {
-                throw new Error(`Failed to fetch blobs: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            console.log('📊 Blob data received:', data);
-            
-            if (data.blobs && Array.isArray(data.blobs)) {
-                console.log(`🫧 Found ${data.blobs.length} existing blobs to load`);
-                
-                // Clear any existing blobs first
-                if (this.visualizer) {
-                    this.visualizer.clearAllBlobs();
+        // Analysis confirmation actions
+        const analysisActions = document.querySelectorAll('.analysis-btn');
+        analysisActions.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (btn.classList.contains('primary')) {
+                    this.hideAnalysisConfirmation();
+                } else {
+                    this.hideAnalysisConfirmation();
                 }
-                
-                // Add blobs with staggered timing for better visual effect
-                data.blobs.forEach((blob, index) => {
-                    setTimeout(() => {
-                        if (this.visualizer) {
-                            console.log(`🎨 Adding blob ${index + 1}/${data.blobs.length}:`, blob.category);
-                            this.visualizer.addBlob(blob);
-                            
-                            // Update blob info after each addition
-                            this.updateBlobInfo();
-                        }
-                    }, index * 100); // 100ms delay between each blob
-                });
-                
-                // Final update after all blobs are loaded
-                setTimeout(() => {
-                    this.updateBlobInfo();
-                    console.log(`✅ Successfully loaded ${data.blobs.length} blobs`);
-                }, data.blobs.length * 100 + 500);
-                
-            } else {
-                console.log('📭 No existing blobs found');
-                this.updateBlobInfo(); // Update with zero count
-            }
-            
-        } catch (error) {
-            console.error('❌ Failed to load existing blobs:', error);
-            // Still update blob info to show zero count
-            this.updateBlobInfo();
+            });
+        });
+        
+        // Instructions panel close button
+        const instructionsClose = document.querySelector('.instructions-close');
+        if (instructionsClose) {
+            instructionsClose.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.hideInstructions();
+            });
         }
+        
+        // Blob info panel close button
+        const blobInfoClose = document.querySelector('.blob-info-close');
+        if (blobInfoClose) {
+            blobInfoClose.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.toggleBlobInfo(); // This will close it if it's open
+            });
+        }
+        
+        console.log('✅ UI interactions initialized');
     }
     
-    handleWebSocketMessage(event) {
-        try {
-            const data = JSON.parse(event.data);
-            console.log('📨 WebSocket message:', data);
-            
-            switch (data.type) {
-                case 'analysis_complete':
-                    this.handleAnalysisComplete(data);
-                    break;
-                    
-                case 'analysis_progress':
-                    this.updateProcessingStatus(data.message || 'Processing...');
-                    break;
-                    
-                case 'error':
-                    this.handleAnalysisError(data.message);
-                    break;
-                    
-                case 'blob_added':
-                    this.handleBlobAdded(data.blob);
-                    break;
-                    
-                default:
-                    console.log('🔍 Unknown message type:', data.type);
-            }
-            
-        } catch (error) {
-            console.error('❌ Error parsing WebSocket message:', error);
-        }
-    }
-    
-    async toggleRecording() {
-        if (this.isRecording) {
-            await this.stopRecording();
-        } else {
-            await this.startRecording();
-        }
-    }
-    
+    /**
+     * Start audio recording
+     */
     async startRecording() {
-        if (this.isRecording) return;
+        console.log('🎤 Starting recording...');
         
         try {
-            console.log('🎤 Starting recording...');
-            
-            // Request microphone permission
+            // Request microphone access
             const stream = await navigator.mediaDevices.getUserMedia({ 
                 audio: {
                     echoCancellation: true,
@@ -388,10 +369,7 @@ class HopesAndSorrowsApp {
             });
             
             this.audioChunks = [];
-            this.isRecording = true;
-            this.currentTime = 0;
             
-            // Set up MediaRecorder events
             this.mediaRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
                     this.audioChunks.push(event.data);
@@ -400,132 +378,68 @@ class HopesAndSorrowsApp {
             
             this.mediaRecorder.onstop = () => {
                 this.processRecording();
-                stream.getTracks().forEach(track => track.stop());
             };
             
             // Start recording
             this.mediaRecorder.start();
+            this.isRecording = true;
+            this.recordingStartTime = Date.now();
             
             // Update UI
-            this.updateRecordingUI();
-            this.startTimer();
+            this.updateRecordingUI(true);
+            this.startRecordingTimer();
+            
+            // Add visual feedback to visualizer
+            if (this.emotionVisualizer && this.emotionVisualizer.startRecording) {
+                this.emotionVisualizer.startRecording();
+            }
             
             console.log('✅ Recording started');
             
         } catch (error) {
-            console.error('❌ Recording failed:', error);
+            console.error('❌ Failed to start recording:', error);
             this.showError('Failed to access microphone. Please check permissions.');
-            this.resetRecordingState();
         }
     }
     
-    async stopRecording() {
-        if (!this.isRecording || !this.mediaRecorder) return;
+    /**
+     * Stop audio recording
+     */
+    stopRecording() {
+        console.log('🛑 Stopping recording...');
         
-        console.log('⏹️ Stopping recording...');
-        
-        this.isRecording = false;
-        this.mediaRecorder.stop();
-        this.stopTimer();
-        
-        console.log('✅ Recording stopped');
-    }
-    
-    updateRecordingUI() {
-        if (!this.recordBtn || !this.statusPanel || !this.timer) return;
-        
-        if (this.isRecording) {
-            // Recording state
-            this.recordBtn.classList.add('recording');
-            this.recordBtn.innerHTML = `
-                <div class="record-icon">
-                    <div class="record-circle"></div>
-                </div>
-            `;
+        if (this.mediaRecorder && this.isRecording) {
+            this.mediaRecorder.stop();
+            this.isRecording = false;
             
-            // Update status text
-            const statusText = this.statusPanel.querySelector('.status-text');
-            const statusSubtitle = this.statusPanel.querySelector('.status-subtitle');
-            
-            if (statusText) statusText.textContent = 'Recording...';
-            if (statusSubtitle) statusSubtitle.textContent = 'Share your hopes and sorrows';
-            
-            this.timer.classList.add('visible');
-            
-        } else {
-            // Ready state
-            this.recordBtn.classList.remove('recording');
-            this.recordBtn.innerHTML = `
-                <div class="record-icon">
-                    <div class="record-circle"></div>
-                </div>
-            `;
-            
-            // Update status text
-            const statusText = this.statusPanel.querySelector('.status-text');
-            const statusSubtitle = this.statusPanel.querySelector('.status-subtitle');
-            
-            if (statusText) statusText.textContent = 'Ready to Record';
-            if (statusSubtitle) statusSubtitle.textContent = 'Click to share your emotional journey';
-            
-            this.timer.classList.remove('visible');
-        }
-    }
-    
-    startTimer() {
-        if (!this.timerProgress || !this.timerText) return;
-        
-        this.currentTime = 0;
-        const circumference = 2 * Math.PI * 45; // radius = 45
-        
-        this.recordingTimer = setInterval(() => {
-            this.currentTime++;
-            const remaining = this.recordingDuration - this.currentTime;
-            
-            // Update timer text
-            this.timerText.textContent = remaining.toString();
-            
-            // Update progress circle
-            const progress = this.currentTime / this.recordingDuration;
-            const offset = circumference * (1 - progress);
-            this.timerProgress.style.strokeDashoffset = offset;
-            
-            // Auto-stop when time is up
-            if (remaining <= 0) {
-                this.stopRecording();
+            // Stop all tracks
+            if (this.mediaRecorder.stream) {
+                this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
             }
             
-        }, 1000);
-    }
-    
-    stopTimer() {
-        if (this.recordingTimer) {
-            clearInterval(this.recordingTimer);
-            this.recordingTimer = null;
-        }
-        
-        // Reset timer display
-        if (this.timerText) {
-            this.timerText.textContent = this.recordingDuration.toString();
-        }
-        
-        if (this.timerProgress) {
-            this.timerProgress.style.strokeDashoffset = '283';
+            // Update UI
+            this.updateRecordingUI(false);
+            this.stopRecordingTimer();
+            
+            // Add visual feedback to visualizer
+            if (this.emotionVisualizer && this.emotionVisualizer.stopRecording) {
+                this.emotionVisualizer.stopRecording();
+            }
+            
+            console.log('✅ Recording stopped');
         }
     }
     
+    /**
+     * Process the recorded audio
+     */
     async processRecording() {
-        if (this.audioChunks.length === 0) {
-            this.showError('No audio data recorded. Please try again.');
-            this.resetRecordingState();
-            return;
-        }
+        console.log('⚙️ Processing recording...');
         
         try {
-            console.log('🔄 Processing recording...');
-            
-            // Show processing UI
-            this.showProcessingStatus('Analyzing your voice...');
+            // Show processing state
+            this.updateStatus('processing');
+            this.showProcessingPanel();
             
             // Create audio blob
             const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
@@ -533,292 +447,366 @@ class HopesAndSorrowsApp {
             // Create form data
             const formData = new FormData();
             formData.append('audio', audioBlob, 'recording.webm');
+            formData.append('session_id', this.sessionId);
             
-            // Send to server
+            // Upload and process
             const response = await fetch('/upload_audio', {
                 method: 'POST',
                 body: formData
             });
             
             if (!response.ok) {
-                throw new Error(`Server error: ${response.status}`);
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
-            console.log('✅ Audio uploaded successfully');
+            const result = await response.json();
+            
+            if (result.success) {
+                console.log('✅ Recording processed successfully');
+                
+                // Handle analysis completion directly
+                this.handleAnalysisComplete({
+                    blobs: result.blobs,
+                    processing_summary: result.processing_summary,
+                    session_id: result.session_id
+                });
+                
+            } else {
+                throw new Error(result.error || 'Processing failed');
+            }
             
         } catch (error) {
-            console.error('❌ Processing failed:', error);
-            this.handleAnalysisError('Failed to process recording. Please try again.');
+            console.error('❌ Failed to process recording:', error);
+            this.hideProcessingPanel();
+            this.updateStatus('error');
+            this.showError('Failed to process recording. Please try again.');
         }
     }
     
+    /**
+     * Handle analysis completion
+     */
     handleAnalysisComplete(data) {
-        console.log('🎉 Analysis complete:', data);
+        console.log('🎉 Handling analysis completion:', data);
         
-        this.lastAnalysisData = data;
-        
-        // Hide processing status
-        this.hideProcessingStatus();
-        
-        // Add blobs to visualization
-        if (data.blobs && Array.isArray(data.blobs)) {
-            data.blobs.forEach((blob, index) => {
-                setTimeout(() => {
-                    if (this.visualizer) {
-                        this.visualizer.addBlob(blob);
-                    }
-                }, index * 300); // Staggered addition
-            });
-        }
-        
-        // Show analysis confirmation
-        setTimeout(() => {
-            this.showAnalysisConfirmation(data);
-            this.updateBlobInfo();
-        }, data.blobs ? data.blobs.length * 300 + 500 : 1000);
-        
-        // Reset recording state
-        this.resetRecordingState();
-    }
-    
-    handleAnalysisError(message) {
-        console.error('❌ Analysis error:', message);
-        
-        this.hideProcessingStatus();
-        this.showError(message || 'Analysis failed. Please try again.');
-        this.resetRecordingState();
-    }
-    
-    handleBlobAdded(blob) {
-        console.log('🫧 New blob added:', blob);
-        
-        if (this.visualizer) {
-            this.visualizer.addBlob(blob);
-        }
-        
-        this.updateBlobInfo();
-    }
-    
-    showProcessingStatus(message = 'Processing...') {
-        if (!this.statusPanel || !this.processingPanel) return;
-        
-        this.statusPanel.classList.add('hidden');
-        this.processingPanel.classList.add('visible');
-        
-        const processingText = this.processingPanel.querySelector('.processing-text');
-        const processingSubtitle = this.processingPanel.querySelector('.processing-subtitle');
-        
-        if (processingText) {
-            processingText.textContent = message;
-        }
-        
-        if (processingSubtitle) {
-            processingSubtitle.textContent = 'Analyzing emotional content with AI...';
-        }
-    }
-    
-    hideProcessingStatus() {
-        if (!this.statusPanel || !this.processingPanel) return;
-        
-        this.processingPanel.classList.remove('visible');
-        this.statusPanel.classList.remove('hidden');
-    }
-    
-    updateProcessingStatus(message) {
-        const processingText = this.processingPanel?.querySelector('.processing-text');
-        if (processingText) {
-            processingText.textContent = message;
-        }
-    }
-    
-    showError(message) {
-        if (!this.errorPanel) return;
-        
-        const errorText = this.errorPanel.querySelector('.error-text');
-        if (errorText) {
-            errorText.textContent = message;
-        }
-        
-        this.errorPanel.classList.add('visible');
-        
-        // Auto-hide after 5 seconds
-        setTimeout(() => {
-            this.hideError();
-        }, 5000);
-    }
-    
-    hideError() {
-        if (this.errorPanel) {
-            this.errorPanel.classList.remove('visible');
-        }
-    }
-    
-    resetRecordingState() {
-        this.isRecording = false;
-        this.audioChunks = [];
-        this.currentTime = 0;
-        
-        if (this.mediaRecorder) {
-            this.mediaRecorder = null;
-        }
-        
-        this.stopTimer();
-        this.updateRecordingUI();
-    }
-    
-    showInstructions() {
-        if (this.instructionsPanel) {
-            this.instructionsPanel.classList.remove('hidden');
-        }
-    }
-    
-    hideInstructions() {
-        if (this.instructionsPanel) {
-            this.instructionsPanel.classList.add('hidden');
-        }
-    }
-    
-    toggleBlobInfo() {
-        if (!this.blobInfoPanel || !this.blobInfoToggle) return;
-        
-        const isActive = this.blobInfoPanel.classList.contains('active');
-        
-        if (isActive) {
-            this.hideBlobInfo();
-        } else {
-            this.showBlobInfo();
-        }
-    }
-    
-    showBlobInfo() {
-        if (this.blobInfoPanel && this.blobInfoToggle) {
-            this.blobInfoPanel.classList.add('active');
-            this.blobInfoToggle.classList.add('active');
-            this.updateBlobInfo();
-        }
-    }
-    
-    hideBlobInfo() {
-        if (this.blobInfoPanel && this.blobInfoToggle) {
-            this.blobInfoPanel.classList.remove('active');
-            this.blobInfoToggle.classList.remove('active');
-        }
-    }
-    
-    updateBlobInfo() {
-        if (!this.visualizer) return;
-        
-        const blobCount = this.visualizer.getBlobCount();
-        const categoryCounts = this.visualizer.getCategoryCounts();
-        
-        // Update blob counter
-        const blobCounter = document.getElementById('blob-counter');
-        if (blobCounter) {
-            blobCounter.textContent = blobCount.toString();
-        }
-        
-        // Update category counts
-        Object.entries(categoryCounts).forEach(([category, count]) => {
-            const countElement = document.getElementById(`${category.replace('_', '-')}-count`);
-            if (countElement) {
-                countElement.textContent = count.toString();
-            }
-        });
-        
-        console.log('📊 Blob info updated:', { total: blobCount, categories: categoryCounts });
-    }
-    
-    showAnalysisConfirmation(data) {
-        if (!this.analysisConfirmation) return;
-        
-        // Update statistics
-        const utterancesElement = document.getElementById('analysis-utterances');
-        const emotionsElement = document.getElementById('analysis-emotions');
-        const confidenceElement = document.getElementById('analysis-confidence');
-        
-        if (utterancesElement) {
-            utterancesElement.textContent = data.utterances || '1';
-        }
-        
-        if (emotionsElement) {
-            emotionsElement.textContent = data.blobs ? data.blobs.length.toString() : '1';
-        }
-        
-        if (confidenceElement) {
-            const avgConfidence = data.blobs ? 
-                Math.round(data.blobs.reduce((sum, blob) => sum + (blob.confidence || 0.5), 0) / data.blobs.length * 100) : 
-                75;
-            confidenceElement.textContent = `${avgConfidence}%`;
-        }
-        
-        // Update emotion list
-        const emotionList = document.getElementById('analysis-emotion-list');
-        if (emotionList && data.blobs) {
-            emotionList.innerHTML = '';
+        try {
+            // Hide processing panel
+            this.hideProcessingPanel();
             
-            const uniqueCategories = [...new Set(data.blobs.map(blob => blob.category))];
-            uniqueCategories.forEach(category => {
-                const emotionTag = document.createElement('div');
-                emotionTag.className = 'analysis-emotion';
-                emotionTag.innerHTML = `
-                    <div class="analysis-emotion-dot" style="background-color: var(--${category.replace('_', '-')}-primary)"></div>
-                    <span>${category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
-                `;
-                emotionList.appendChild(emotionTag);
-            });
-        }
-        
-        // Show the panel with enhanced messaging
-        this.analysisConfirmation.classList.add('visible');
-        
-        // Update confirmation title
-        const confirmationTitle = this.analysisConfirmation.querySelector('h3');
-        if (confirmationTitle) {
-            confirmationTitle.textContent = '✨ Analysis Complete!';
-        }
-        
-        // Add success message
-        const summaryElement = this.analysisConfirmation.querySelector('.analysis-summary');
-        if (summaryElement) {
-            const messageDiv = document.createElement('div');
-            messageDiv.style.cssText = 'margin-bottom: 16px; padding: 12px; background: rgba(255, 215, 0, 0.1); border-radius: 8px; border: 1px solid rgba(255, 215, 0, 0.2);';
-            messageDiv.innerHTML = `
-                <div style="font-weight: 600; color: #FFD700; margin-bottom: 4px;">🎉 Your emotions have been captured!</div>
-                <div style="font-size: 14px; color: rgba(255, 255, 255, 0.8);">
-                    Your emotional journey has been analyzed and added to the visualization. 
-                    ${data.blobs ? `${data.blobs.length} new emotion${data.blobs.length > 1 ? 's' : ''} detected.` : 'New emotions detected.'}
-                </div>
-            `;
-            summaryElement.insertBefore(messageDiv, summaryElement.firstChild);
+            // Update status
+            this.updateStatus('complete');
+            
+            // Add new blob to visualizer
+            if (data.blobs && this.emotionVisualizer) {
+                data.blobs.forEach(blob => {
+                    this.emotionVisualizer.addBlob(blob);
+                });
+                
+                // Update stats
+                this.updateBlobStats(data.blobs);
+            }
+            
+            // Show analysis confirmation
+            this.showAnalysisConfirmation(data);
+            
+            // Reset to ready state after delay
+            setTimeout(() => {
+                this.updateStatus('ready');
+            }, 3000);
+            
+            console.log('✅ Analysis completion handled');
+            
+        } catch (error) {
+            console.error('❌ Failed to handle analysis completion:', error);
+            this.showError('Analysis completed but display failed.');
         }
     }
     
-    hideAnalysisConfirmation() {
-        if (this.analysisConfirmation) {
-            this.analysisConfirmation.classList.remove('visible');
+    /**
+     * Update recording UI state
+     */
+    updateRecordingUI(isRecording) {
+        if (!this.elements.recordBtn) return;
+        
+        if (isRecording) {
+            this.elements.recordBtn.classList.add('recording');
+            this.updateStatus('recording');
+        } else {
+            this.elements.recordBtn.classList.remove('recording');
+        }
+    }
+    
+    /**
+     * Start recording timer
+     */
+    startRecordingTimer() {
+        if (!this.elements.timer || !this.elements.timerText || !this.elements.timerProgress) {
+            return;
+        }
+        
+        this.elements.timer.classList.add('visible');
+        
+        this.recordingTimer = setInterval(() => {
+            const elapsed = Date.now() - this.recordingStartTime;
+            const remaining = Math.max(0, this.maxRecordingTime - elapsed);
+            const progress = (elapsed / this.maxRecordingTime) * 100;
+            
+            // Update timer display
+            const seconds = Math.ceil(remaining / 1000);
+            this.elements.timerText.textContent = seconds;
+            
+            // Update progress circle
+            if (this.elements.timerProgress) {
+                const circumference = 2 * Math.PI * 45; // radius = 45
+                const offset = circumference - (progress / 100) * circumference;
+                this.elements.timerProgress.style.strokeDashoffset = offset;
+            }
+            
+            // Auto-stop when time is up
+            if (remaining <= 0) {
+                this.stopRecording();
+            }
+        }, 100);
+    }
+    
+    /**
+     * Stop recording timer
+     */
+    stopRecordingTimer() {
+        if (this.recordingTimer) {
+            clearInterval(this.recordingTimer);
+            this.recordingTimer = null;
+        }
+        
+        if (this.elements.timer) {
+            this.elements.timer.classList.remove('visible');
+        }
+    }
+    
+    /**
+     * Update status display
+     */
+    updateStatus(status) {
+        this.currentStatus = status;
+        const statusData = this.statusMessages[status];
+        
+        if (statusData && this.elements.statusText) {
+            this.elements.statusText.textContent = statusData.main;
+            
+            if (this.elements.statusSubtitle) {
+                this.elements.statusSubtitle.textContent = statusData.sub;
+            }
+        }
+    }
+    
+    /**
+     * Show/hide loading overlay
+     */
+    showLoadingOverlay() {
+        if (this.elements.loadingOverlay) {
+            this.elements.loadingOverlay.classList.remove('hidden');
         }
     }
     
     hideLoadingOverlay() {
-        if (this.loadingOverlay) {
-            this.loadingOverlay.classList.add('hidden');
-            console.log('🎭 Loading overlay hidden');
+        if (this.elements.loadingOverlay) {
+            this.elements.loadingOverlay.classList.add('hidden');
         }
     }
     
-    showLoadingOverlay() {
-        if (this.loadingOverlay) {
-            this.loadingOverlay.classList.remove('hidden');
-            console.log('🎭 Loading overlay shown');
+    /**
+     * Show/hide processing panel
+     */
+    showProcessingPanel() {
+        if (this.elements.processingPanel) {
+            this.elements.processingPanel.classList.add('visible');
+        }
+    }
+    
+    hideProcessingPanel() {
+        if (this.elements.processingPanel) {
+            this.elements.processingPanel.classList.remove('visible');
+        }
+    }
+    
+    /**
+     * Show/hide error panel
+     */
+    showError(message) {
+        if (this.elements.errorPanel) {
+            const errorText = this.elements.errorPanel.querySelector('.error-text');
+            if (errorText) {
+                errorText.textContent = message;
+            }
+            this.elements.errorPanel.classList.add('visible');
+        }
+    }
+    
+    hideError() {
+        if (this.elements.errorPanel) {
+            this.elements.errorPanel.classList.remove('visible');
+        }
+    }
+    
+    /**
+     * Show/hide analysis confirmation
+     */
+    showAnalysisConfirmation(data) {
+        if (this.elements.analysisConfirmation) {
+            // Update confirmation content if needed
+            this.elements.analysisConfirmation.classList.add('visible');
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                this.hideAnalysisConfirmation();
+            }, 5000);
+        }
+    }
+    
+    hideAnalysisConfirmation() {
+        if (this.elements.analysisConfirmation) {
+            this.elements.analysisConfirmation.classList.remove('visible');
+        }
+    }
+    
+    /**
+     * Hide instructions panel
+     */
+    hideInstructions() {
+        const instructionsPanel = document.querySelector('.instructions-panel');
+        if (instructionsPanel) {
+            instructionsPanel.classList.add('hidden');
+        }
+    }
+    
+    /**
+     * Toggle blob info panel
+     */
+    toggleBlobInfo() {
+        if (this.elements.blobInfoPanel && this.elements.blobInfoToggle) {
+            const isActive = this.elements.blobInfoPanel.classList.contains('active');
+            
+            if (isActive) {
+                this.elements.blobInfoPanel.classList.remove('active');
+                this.elements.blobInfoToggle.classList.remove('active');
+            } else {
+                this.elements.blobInfoPanel.classList.add('active');
+                this.elements.blobInfoToggle.classList.add('active');
+            }
+        }
+    }
+    
+    /**
+     * Update blob statistics
+     */
+    updateBlobStats(blobs) {
+        // Update total count
+        if (this.elements.blobCount) {
+            this.elements.blobCount.textContent = blobs.length;
+        }
+        
+        // Update category counts - handle both uppercase and lowercase
+        const categoryCounts = {
+            hope: 0,
+            sorrow: 0,
+            transformative: 0,
+            ambivalent: 0,
+            reflective_neutral: 0
+        };
+        
+        blobs.forEach(blob => {
+            const category = blob.category ? blob.category.toLowerCase() : '';
+            if (categoryCounts.hasOwnProperty(category)) {
+                categoryCounts[category]++;
+            }
+        });
+        
+        // Update category stat displays by ID
+        const categoryElements = {
+            hope: document.getElementById('hope-count'),
+            sorrow: document.getElementById('sorrow-count'),
+            transformative: document.getElementById('transformative-count'),
+            ambivalent: document.getElementById('ambivalent-count'),
+            reflective_neutral: document.getElementById('reflective-count')
+        };
+        
+        Object.keys(categoryCounts).forEach(category => {
+            const element = categoryElements[category];
+            if (element) {
+                element.textContent = categoryCounts[category];
+            }
+        });
+        
+        console.log('📊 Updated blob stats:', categoryCounts);
+    }
+    
+    /**
+     * Show WebGL fallback message
+     */
+    showWebGLFallback() {
+        const fallbackHTML = `
+            <div class="webgl-fallback">
+                <h3>WebGL Not Available</h3>
+                <p>Your browser doesn't support WebGL or it's disabled.</p>
+                <p>The visualization will use a simplified version.</p>
+            </div>
+        `;
+        
+        if (this.elements.visualizationContainer) {
+            this.elements.visualizationContainer.innerHTML = fallbackHTML;
+        }
+    }
+    
+    /**
+     * Generate unique session ID
+     */
+    generateSessionId() {
+        return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+    
+    /**
+     * Check if click is on UI element
+     */
+    isClickOnUIElement(event) {
+        const uiSelectors = [
+            '.recording-interface',
+            '.blob-info-panel',
+            '.blob-info-toggle',
+            '.processing-panel',
+            '.error-panel',
+            '.analysis-confirmation',
+            '.nav-bar'
+        ];
+        
+        return uiSelectors.some(selector => {
+            const element = document.querySelector(selector);
+            return element && element.contains(event.target);
+        });
+    }
+    
+    /**
+     * Update blob count (for single additions)
+     */
+    async updateBlobCount() {
+        try {
+            const response = await fetch('/api/get_all_blobs');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.blobs) {
+                    this.updateBlobStats(data.blobs);
+                }
+            }
+        } catch (error) {
+            console.error('❌ Failed to update blob count:', error);
         }
     }
 }
 
-// Initialize app when DOM is ready
+// Initialize app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🌟 DOM loaded, initializing Hopes & Sorrows App');
-    window.app = new HopesAndSorrowsApp();
+    console.log('🌟 DOM loaded, initializing Hopes & Sorrows App...');
+    window.hopesSorrowsApp = new HopesSorrowsApp();
 });
 
-// Make app globally accessible
-window.HopesAndSorrowsApp = HopesAndSorrowsApp; 
+// Export for global access
+window.HopesSorrowsApp = HopesSorrowsApp; 
