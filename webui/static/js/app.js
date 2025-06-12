@@ -18,7 +18,7 @@ class HopesSorrowsApp {
         // UI Elements
         this.elements = {};
         
-        // Enhanced Emotion Visualizer (GLSL-based)
+        // Dual Emotion Visualizer (GLSL Vortex + P5.js Blobs)
         this.emotionVisualizer = null;
         
         // Blob management
@@ -70,7 +70,7 @@ class HopesSorrowsApp {
             // Initialize WebSocket connection
             await this.initializeSocket();
             
-            // Initialize Enhanced GLSL Emotion Visualizer
+            // Initialize Dual Emotion Visualizer
             await this.initializeVisualizer();
             
             // Load existing blobs
@@ -218,32 +218,53 @@ class HopesSorrowsApp {
     }
     
     /**
-     * Initialize Enhanced GLSL Emotion Visualizer
+     * Initialize Dual Emotion Visualizer
      */
     async initializeVisualizer() {
-        console.log('🎨 Initializing Enhanced GLSL Emotion Visualizer...');
+        console.log('🎭 Initializing Dual Emotion Visualizer...');
         
         try {
-            // Check if IntegratedEmotionVisualizer class is available
-            if (typeof IntegratedEmotionVisualizer === 'undefined') {
-                throw new Error('IntegratedEmotionVisualizer class not found');
+            // Check if DualEmotionVisualizer class is available
+            if (typeof DualEmotionVisualizer === 'undefined') {
+                throw new Error('DualEmotionVisualizer class not found');
             }
             
-            // Initialize the visualizer
-            this.emotionVisualizer = new IntegratedEmotionVisualizer();
+            // Initialize the dual visualizer
+            this.emotionVisualizer = new DualEmotionVisualizer();
             
             // Initialize with container
             await this.emotionVisualizer.init(this.elements.visualizationContainer);
             
+            // Set up keyboard shortcuts
+            this.emotionVisualizer.setupKeyboardShortcuts();
+            
             // Set up event handlers for visualizer
             this.setupVisualizerEventHandlers();
             
-            console.log('✅ Enhanced GLSL Emotion Visualizer initialized');
+            console.log('✅ Dual Emotion Visualizer initialized');
             
         } catch (error) {
-            console.error('❌ Visualizer initialization failed:', error);
-            this.showWebGLFallback();
-            throw error;
+            console.error('❌ Dual Visualizer initialization failed:', error);
+            
+            // Fallback to single visualizer
+            try {
+                console.log('🔄 Attempting fallback to single visualizer...');
+                if (typeof IntegratedEmotionVisualizer !== 'undefined') {
+                    this.emotionVisualizer = new IntegratedEmotionVisualizer();
+                    await this.emotionVisualizer.init(this.elements.visualizationContainer);
+                    console.log('✅ Fallback to GLSL visualizer successful');
+                } else if (typeof BlobEmotionVisualizer !== 'undefined') {
+                    this.emotionVisualizer = new BlobEmotionVisualizer();
+                    await this.emotionVisualizer.init(this.elements.visualizationContainer);
+                    console.log('✅ Fallback to Blob visualizer successful');
+                } else {
+                    throw new Error('No visualizer classes available');
+                }
+            } catch (fallbackError) {
+                console.error('❌ Fallback visualizer also failed:', fallbackError);
+                this.showWebGLFallback();
+                throw fallbackError;
+            }
         }
     }
     
@@ -254,10 +275,17 @@ class HopesSorrowsApp {
         // Store reference to app instance for visualizer callbacks
         window.app = this;
         
-        // Handle visualization mode changes
+        // Handle visualization mode changes (for dual visualizer)
         this.onVisualizationModeChanged = (mode, modeInfo) => {
-            console.log(`🎨 Visualization mode changed to: ${modeInfo.name}`);
-            // You can add UI updates here if needed
+            console.log(`🎭 Visualization mode changed to: ${mode} (${modeInfo ? modeInfo.name : 'Unknown'})`);
+            
+            // Update UI to reflect current mode
+            this.updateModeIndicator(mode);
+            
+            // Update blob stats after mode change
+            setTimeout(() => {
+                this.updateBlobStats();
+            }, 500);
         };
         
         // Handle category visibility changes
@@ -265,6 +293,24 @@ class HopesSorrowsApp {
             console.log(`🎨 Category ${category} visibility: ${visible}`);
             this.updateBlobStats();
         };
+    }
+    
+    /**
+     * Update mode indicator in UI
+     */
+    updateModeIndicator(mode) {
+        // Add visual feedback for current mode
+        const modeIndicator = document.querySelector('.mode-indicator');
+        if (modeIndicator) {
+            const modeNames = {
+                vortex: '🌀 GLSL Vortex',
+                blobs: '🫧 Floating Blobs'
+            };
+            modeIndicator.textContent = modeNames[mode] || mode;
+        }
+        
+        // Update any mode-specific UI elements
+        document.body.setAttribute('data-visualizer-mode', mode);
     }
     
     /**
@@ -399,182 +445,12 @@ class HopesSorrowsApp {
             });
         });
         
-        // Add visualization mode toggle button
-        this.addVisualizationControls();
+        // Note: Dual visualizer handles its own toggle controls
         
         console.log('✅ UI interactions initialized');
     }
     
-    /**
-     * Add visualization mode controls to the UI
-     */
-    addVisualizationControls() {
-        // Create mode toggle button
-        const modeToggle = document.createElement('button');
-        modeToggle.id = 'mode-toggle';
-        modeToggle.className = 'mode-toggle-btn';
-        modeToggle.innerHTML = '🎨';
-        modeToggle.title = 'Toggle Visualization Mode (M)';
-        modeToggle.style.cssText = `
-            position: fixed;
-            top: 100px;
-            right: 20px;
-            z-index: 1000;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: rgba(21, 21, 21, 0.9);
-            border: 2px solid rgba(255, 215, 0, 0.3);
-            color: white;
-            font-size: 20px;
-            cursor: pointer;
-            backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
-            opacity: 0;
-            transform: scale(0.8) translateX(20px);
-        `;
-        
-        modeToggle.addEventListener('click', () => {
-            if (this.emotionVisualizer) {
-                this.emotionVisualizer.toggleVisualizationMode();
-                
-                // Add click animation
-                if (typeof anime !== 'undefined') {
-                    anime({
-                        targets: modeToggle,
-                        scale: [1, 0.9, 1.1, 1],
-                        duration: 400,
-                        easing: 'easeOutElastic(1, .8)'
-                    });
-                }
-            }
-        });
-        
-        modeToggle.addEventListener('mouseenter', () => {
-            if (typeof anime !== 'undefined') {
-                anime({
-                    targets: modeToggle,
-                    scale: 1.1,
-                    borderColor: 'rgba(255, 215, 0, 0.6)',
-                    duration: 200,
-                    easing: 'easeOutCubic'
-                });
-            } else {
-                modeToggle.style.transform = 'scale(1.1)';
-                modeToggle.style.borderColor = 'rgba(255, 215, 0, 0.6)';
-            }
-        });
-        
-        modeToggle.addEventListener('mouseleave', () => {
-            if (typeof anime !== 'undefined') {
-                anime({
-                    targets: modeToggle,
-                    scale: 1,
-                    borderColor: 'rgba(255, 215, 0, 0.3)',
-                    duration: 200,
-                    easing: 'easeOutCubic'
-                });
-            } else {
-                modeToggle.style.transform = 'scale(1)';
-                modeToggle.style.borderColor = 'rgba(255, 215, 0, 0.3)';
-            }
-        });
-        
-        document.body.appendChild(modeToggle);
-        
-        // Create camera reset button
-        const resetBtn = document.createElement('button');
-        resetBtn.id = 'camera-reset';
-        resetBtn.className = 'camera-reset-btn';
-        resetBtn.innerHTML = '🎯';
-        resetBtn.title = 'Reset Camera (R)';
-        resetBtn.style.cssText = `
-            position: fixed;
-            top: 160px;
-            right: 20px;
-            z-index: 1000;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: rgba(21, 21, 21, 0.9);
-            border: 2px solid rgba(255, 215, 0, 0.3);
-            color: white;
-            font-size: 20px;
-            cursor: pointer;
-            backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
-            opacity: 0;
-            transform: scale(0.8) translateX(20px);
-        `;
-        
-        resetBtn.addEventListener('click', () => {
-            if (this.emotionVisualizer) {
-                this.emotionVisualizer.resetCamera();
-                
-                // Add click animation
-                if (typeof anime !== 'undefined') {
-                    anime({
-                        targets: resetBtn,
-                        scale: [1, 0.9, 1.1, 1],
-                        duration: 400,
-                        easing: 'easeOutElastic(1, .8)'
-                    });
-                }
-            }
-        });
-        
-        resetBtn.addEventListener('mouseenter', () => {
-            if (typeof anime !== 'undefined') {
-                anime({
-                    targets: resetBtn,
-                    scale: 1.1,
-                    borderColor: 'rgba(255, 215, 0, 0.6)',
-                    duration: 200,
-                    easing: 'easeOutCubic'
-                });
-            } else {
-                resetBtn.style.transform = 'scale(1.1)';
-                resetBtn.style.borderColor = 'rgba(255, 215, 0, 0.6)';
-            }
-        });
-        
-        resetBtn.addEventListener('mouseleave', () => {
-            if (typeof anime !== 'undefined') {
-                anime({
-                    targets: resetBtn,
-                    scale: 1,
-                    borderColor: 'rgba(255, 215, 0, 0.3)',
-                    duration: 200,
-                    easing: 'easeOutCubic'
-                });
-            } else {
-                resetBtn.style.transform = 'scale(1)';
-                resetBtn.style.borderColor = 'rgba(255, 215, 0, 0.3)';
-            }
-        });
-        
-        document.body.appendChild(resetBtn);
-        
-        // Animate buttons entrance after a delay
-        setTimeout(() => {
-            if (typeof anime !== 'undefined') {
-                anime({
-                    targets: [modeToggle, resetBtn],
-                    opacity: [0, 1],
-                    translateX: [20, 0],
-                    scale: [0.8, 1],
-                    delay: anime.stagger(200),
-                    duration: 800,
-                    easing: 'easeOutElastic(1, .8)'
-                });
-            } else {
-                modeToggle.style.opacity = '1';
-                modeToggle.style.transform = 'scale(1) translateX(0)';
-                resetBtn.style.opacity = '1';
-                resetBtn.style.transform = 'scale(1) translateX(0)';
-            }
-        }, 1000);
-    }
+
     
     /**
      * Update category UI based on visibility
