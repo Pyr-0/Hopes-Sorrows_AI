@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnostic - Hopes & Sorrows</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #1a1a1a;
+            color: white;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #FFD700;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .success { background: #2d5a2d; color: #90ee90; }
+        .error { background: #5a2d2d; color: #ff6b6b; }
+        .warning { background: #5a5a2d; color: #ffeb3b; }
+        .info { background: #2d4a5a; color: #87ceeb; }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #FFD700, #FFA500);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .console-output {
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 10px 0;
+            border: 1px solid #333;
+        }
+        
+        button {
+            background: #FFD700;
+            color: #1a1a1a;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+            transition: all 0.2s ease;
+        }
+        button:hover {
+            background: #FFA500;
+            transform: translateY(-1px);
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-success { background: #4CAF50; }
+        .status-error { background: #F44336; }
+        .status-warning { background: #FF9800; }
+        .status-info { background: #2196F3; }
+        
+        .diagnostic-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .diagnostic-header h1 {
+            color: #FFD700;
+            margin-bottom: 10px;
+        }
+        
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="diagnostic-header">
+            <h1>🔍 Hopes & Sorrows Diagnostic Tool</h1>
+            <p>This tool will help identify why the application might not be working properly.</p>
+        </div>
+
+        <div class="quick-actions">
+            <button onclick="runAllTests()">🧪 Run All Tests</button>
+            <button onclick="testVisualization()">🎨 Test Visualization</button>
+            <button onclick="clearConsole()">🧹 Clear Console</button>
+            <button onclick="window.open('/app', '_blank')">🚀 Open Main App</button>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Test Progress</h3>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div id="progress-text">Ready to start tests...</div>
+        </div>
+
+        <div class="test-section">
+            <h3>🌐 Browser Compatibility</h3>
+            <div id="browser-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📚 JavaScript Libraries</h3>
+            <div id="library-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🎮 WebGL Support</h3>
+            <div id="webgl-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔌 Server Connection</h3>
+            <div id="server-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🎨 Visualization Test</h3>
+            <div id="visualization-results"></div>
+            <canvas id="test-canvas" width="400" height="200" style="border: 1px solid #666; margin: 10px 0;"></canvas>
+        </div>
+
+        <div class="test-section">
+            <h3>📝 Console Output</h3>
+            <div id="console-output" class="console-output">Console output will appear here...</div>
+        </div>
+
+        <div class="test-section">
+            <h3>💡 Recommendations</h3>
+            <div id="recommendations"></div>
+        </div>
+    </div>
+
+    <!-- Load libraries for testing -->
+    <script src="{{ url_for('static', filename='js/p5.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/anime.min.js') }}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <script src="{{ url_for('static', filename='js/emotion-visualizer.js') }}"></script>
+
+    <script>
+        let testProgress = 0;
+        let totalTests = 0;
+        let passedTests = 0;
+        let failedTests = 0;
+
+        // Console capture
+        const consoleOutput = document.getElementById('console-output');
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+
+        function addToConsole(message, type = 'log') {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#ff6b6b' : type === 'warn' ? '#ffeb3b' : '#0f0';
+            consoleOutput.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addToConsole(args.join(' '), 'log');
+        };
+
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addToConsole(args.join(' '), 'error');
+        };
+
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            addToConsole(args.join(' '), 'warn');
+        };
+
+        function clearConsole() {
+            consoleOutput.innerHTML = 'Console cleared...';
+        }
+
+        function addResult(containerId, message, status, details = '') {
+            const container = document.getElementById(containerId);
+            const div = document.createElement('div');
+            div.className = `test-result ${status}`;
+            
+            const statusClass = status === 'success' ? 'status-success' : 
+                               status === 'error' ? 'status-error' : 
+                               status === 'warning' ? 'status-warning' : 'status-info';
+            
+            div.innerHTML = `
+                <span class="status-indicator ${statusClass}"></span>
+                ${message}
+                ${details ? `<br><small style="opacity: 0.8;">${details}</small>` : ''}
+            `;
+            container.appendChild(div);
+
+            if (status === 'success') passedTests++;
+            else if (status === 'error') failedTests++;
+        }
+
+        function updateProgress() {
+            testProgress++;
+            const percentage = (testProgress / totalTests) * 100;
+            document.getElementById('progress-fill').style.width = percentage + '%';
+            document.getElementById('progress-text').textContent = 
+                `Progress: ${testProgress}/${totalTests} tests completed (${passedTests} passed, ${failedTests} failed)`;
+        }
+
+        function testBrowserCompatibility() {
+            const container = 'browser-results';
+            
+            // Browser info
+            addResult(container, `Browser: ${navigator.userAgent}`, 'info');
+            updateProgress();
+
+            // JavaScript features
+            const features = [
+                { name: 'ES6 Classes', test: () => typeof class {} === 'function' },
+                { name: 'Promises', test: () => typeof Promise !== 'undefined' },
+                { name: 'Fetch API', test: () => typeof fetch !== 'undefined' },
+                { name: 'WebGL', test: () => {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        return !!(canvas.getContext('webgl') || canvas.getContext('experimental-webgl'));
+                    } catch (e) { return false; }
+                }},
+                { name: 'Web Audio API', test: () => typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined' },
+                { name: 'MediaRecorder', test: () => typeof MediaRecorder !== 'undefined' },
+                { name: 'getUserMedia', test: () => !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) }
+            ];
+
+            features.forEach(feature => {
+                const supported = feature.test();
+                addResult(container, feature.name, supported ? 'success' : 'error');
+                updateProgress();
+            });
+        }
+
+        function testLibraries() {
+            const container = 'library-results';
+            
+            const libraries = [
+                { name: 'p5.js', check: () => typeof p5 !== 'undefined', required: true },
+                { name: 'Anime.js', check: () => typeof anime !== 'undefined', required: true },
+                { name: 'Socket.IO', check: () => typeof io !== 'undefined', required: true },
+                { name: 'EmotionVisualizer', check: () => typeof EmotionVisualizer !== 'undefined', required: true }
+            ];
+
+            libraries.forEach(lib => {
+                const loaded = lib.check();
+                const status = loaded ? 'success' : (lib.required ? 'error' : 'warning');
+                const message = `${lib.name} ${loaded ? 'loaded' : 'missing'}`;
+                addResult(container, message, status);
+                updateProgress();
+            });
+        }
+
+        function testWebGL() {
+            const container = 'webgl-results';
+            
+            try {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                
+                if (!gl) {
+                    addResult(container, 'WebGL not supported', 'error', 'Your browser does not support WebGL');
+                    updateProgress();
+                    return;
+                }
+
+                addResult(container, 'WebGL context created', 'success');
+                updateProgress();
+
+                // Test WebGL features
+                const extensions = gl.getSupportedExtensions();
+                addResult(container, `WebGL extensions: ${extensions.length} available`, 'info');
+                updateProgress();
+
+                // Test shader compilation
+                const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+                const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+
+                const vertexSource = `
+                    attribute vec2 a_position;
+                    void main() {
+                        gl_Position = vec4(a_position, 0.0, 1.0);
+                    }
+                `;
+
+                const fragmentSource = `
+                    precision mediump float;
+                    uniform float u_time;
+                    void main() {
+                        gl_FragColor = vec4(sin(u_time), cos(u_time), 0.5, 1.0);
+                    }
+                `;
+
+                gl.shaderSource(vertexShader, vertexSource);
+                gl.compileShader(vertexShader);
+
+                if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+                    addResult(container, 'Vertex shader compilation failed', 'error', gl.getShaderInfoLog(vertexShader));
+                } else {
+                    addResult(container, 'Vertex shader compiled successfully', 'success');
+                }
+                updateProgress();
+
+                gl.shaderSource(fragmentShader, fragmentSource);
+                gl.compileShader(fragmentShader);
+
+                if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
+                    addResult(container, 'Fragment shader compilation failed', 'error', gl.getShaderInfoLog(fragmentShader));
+                } else {
+                    addResult(container, 'Fragment shader compiled successfully', 'success');
+                }
+                updateProgress();
+
+            } catch (error) {
+                addResult(container, 'WebGL test failed', 'error', error.message);
+                updateProgress();
+            }
+        }
+
+        async function testServerConnection() {
+            const container = 'server-results';
+            
+            try {
+                // Test main server
+                const response = await fetch('/');
+                addResult(container, `Server responding (${response.status})`, response.ok ? 'success' : 'error');
+                updateProgress();
+
+                // Test API endpoint
+                const apiResponse = await fetch('/api/get_all_blobs');
+                if (apiResponse.ok) {
+                    const data = await apiResponse.json();
+                    addResult(container, `API working - ${data.blobs?.length || 0} blobs found`, 'success');
+                } else {
+                    addResult(container, `API error (${apiResponse.status})`, 'error');
+                }
+                updateProgress();
+
+            } catch (error) {
+                addResult(container, 'Server connection failed', 'error', error.message);
+                updateProgress();
+            }
+        }
+
+        function testVisualization() {
+            const container = 'visualization-results';
+            const canvas = document.getElementById('test-canvas');
+            
+            try {
+                if (typeof EmotionVisualizer === 'undefined') {
+                    addResult(container, 'EmotionVisualizer class not available', 'error');
+                    return;
+                }
+
+                // Test basic instantiation
+                const visualizer = new EmotionVisualizer();
+                addResult(container, 'EmotionVisualizer instance created', 'success');
+
+                // Test WebGL canvas
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                if (gl) {
+                    // Simple WebGL test animation
+                    gl.clearColor(0.1, 0.1, 0.1, 1.0);
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+                    
+                    let time = 0;
+                    function animate() {
+                        time += 0.01;
+                        const r = Math.sin(time) * 0.5 + 0.5;
+                        const g = Math.cos(time) * 0.5 + 0.5;
+                        gl.clearColor(r * 0.2, g * 0.2, 0.3, 1.0);
+                        gl.clear(gl.COLOR_BUFFER_BIT);
+                        
+                        if (time < 3) { // Run for 3 seconds
+                            requestAnimationFrame(animate);
+                        }
+                    }
+                    animate();
+                    
+                    addResult(container, 'WebGL test animation started', 'success');
+                } else {
+                    addResult(container, 'WebGL not available for visualization', 'warning');
+                }
+
+            } catch (error) {
+                addResult(container, 'Visualization test failed', 'error', error.message);
+            }
+        }
+
+        function generateRecommendations() {
+            const container = document.getElementById('recommendations');
+            const recommendations = [];
+
+            if (failedTests === 0) {
+                recommendations.push({
+                    type: 'success',
+                    message: '🎉 All tests passed! The application should work correctly.',
+                    action: 'Try opening the main application and check if it loads properly.'
+                });
+            } else {
+                if (typeof WebGL === 'undefined' || !document.createElement('canvas').getContext('webgl')) {
+                    recommendations.push({
+                        type: 'error',
+                        message: '🚫 WebGL is not supported or disabled.',
+                        action: 'Enable WebGL in your browser settings or try a different browser (Chrome, Firefox, Safari).'
+                    });
+                }
+
+                if (typeof p5 === 'undefined') {
+                    recommendations.push({
+                        type: 'error',
+                        message: '📚 p5.js library failed to load.',
+                        action: 'Check your internet connection and try refreshing the page.'
+                    });
+                }
+
+                if (failedTests > 3) {
+                    recommendations.push({
+                        type: 'warning',
+                        message: '⚠️ Multiple compatibility issues detected.',
+                        action: 'Try using a modern browser like Chrome 80+, Firefox 75+, or Safari 13+.'
+                    });
+                }
+            }
+
+            recommendations.forEach(rec => {
+                const div = document.createElement('div');
+                div.className = `test-result ${rec.type}`;
+                div.innerHTML = `
+                    <strong>${rec.message}</strong><br>
+                    <small>${rec.action}</small>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        async function runAllTests() {
+            // Reset counters
+            testProgress = 0;
+            passedTests = 0;
+            failedTests = 0;
+            totalTests = 20; // Approximate number of tests
+
+            // Clear previous results
+            ['browser-results', 'library-results', 'webgl-results', 'server-results', 'visualization-results', 'recommendations'].forEach(id => {
+                document.getElementById(id).innerHTML = '';
+            });
+
+            console.log('🧪 Starting comprehensive diagnostic tests...');
+
+            // Run tests
+            testBrowserCompatibility();
+            testLibraries();
+            testWebGL();
+            await testServerConnection();
+            testVisualization();
+
+            // Generate recommendations
+            generateRecommendations();
+
+            console.log(`✅ Diagnostic tests completed: ${passedTests} passed, ${failedTests} failed`);
+        }
+
+        // Auto-run tests when page loads
+        window.addEventListener('load', () => {
+            setTimeout(runAllTests, 1000);
+        });
+    </script>
+</body>
+</html> 

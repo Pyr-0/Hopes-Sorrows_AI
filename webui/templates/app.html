@@ -92,7 +92,7 @@
         </div>
         
         <!-- Blob Information Panel -->
-        <div id="blob-info" class="blob-info-panel">
+        <div id="blob-info-panel" class="blob-info-panel">
             <div class="blob-info-content">
                 <div class="blob-info-header">
                     <h3 class="blob-info-title">Emotional Landscape</h3>
@@ -124,10 +124,10 @@
                                 <span class="category-name">Ambivalent</span>
                                 <span class="category-count" id="ambivalent-count">0</span>
                             </div>
-                            <div class="category-stat reflective">
+                            <div class="category-stat reflective_neutral">
                                 <div class="category-dot"></div>
                                 <span class="category-name">Reflective</span>
-                                <span class="category-count" id="reflective-count">0</span>
+                                <span class="category-count" id="reflective-neutral-count">0</span>
                             </div>
                         </div>
                     </div>
@@ -204,6 +204,7 @@
     <script src="{{ url_for('static', filename='js/anime.min.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
     <script src="{{ url_for('static', filename='js/emotion-visualizer.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/audio-recorder.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     
     <!-- WebGL Fallback Detection -->
