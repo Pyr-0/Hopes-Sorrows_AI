@@ -104,8 +104,6 @@ class HopesSorrowsApp {
         this.elements = {
             // Visualization
             visualizationContainer: document.getElementById('visualization-container'),
-            glslCanvas: document.getElementById('glsl-canvas'),
-            p5Container: document.getElementById('p5-container'),
             
             // Recording interface
             recordBtn: document.getElementById('record-button'),
@@ -226,13 +224,13 @@ class HopesSorrowsApp {
         console.log('🎨 Initializing Enhanced GLSL Emotion Visualizer...');
         
         try {
-            // Check if EmotionVisualizer class is available
-            if (typeof EmotionVisualizer === 'undefined') {
-                throw new Error('EmotionVisualizer class not found');
+            // Check if IntegratedEmotionVisualizer class is available
+            if (typeof IntegratedEmotionVisualizer === 'undefined') {
+                throw new Error('IntegratedEmotionVisualizer class not found');
             }
             
-            // Create visualizer instance
-            this.emotionVisualizer = new EmotionVisualizer();
+            // Initialize the visualizer
+            this.emotionVisualizer = new IntegratedEmotionVisualizer();
             
             // Initialize with container
             await this.emotionVisualizer.init(this.elements.visualizationContainer);
