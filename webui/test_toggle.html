@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toggle Test - Dual Visualizer</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0a0a0a;
+            color: white;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        #visualization-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .test-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 2000;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        
+        .test-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 2000;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .test-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .test-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="test-info">
+        <div>Dual Visualizer Toggle Test</div>
+        <div id="status">Loading...</div>
+        <div id="mode-info">Mode: Unknown</div>
+        <div id="blob-count">Blobs: 0</div>
+    </div>
+    
+    <div id="visualization-container"></div>
+    
+    <div class="test-controls">
+        <button class="test-btn" onclick="testVortexMode()">Switch to Vortex</button>
+        <button class="test-btn" onclick="testBlobMode()">Switch to Blobs</button>
+        <button class="test-btn" onclick="testToggle()">Toggle Mode</button>
+        <button class="test-btn" onclick="addTestBlob()">Add Test Blob</button>
+        <button class="test-btn" onclick="clearBlobs()">Clear Blobs</button>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <script src="/static/js/emotion-visualizer.js"></script>
+    <script src="/static/js/blob-visualizer.js"></script>
+    <script src="/static/js/dual-visualizer.js"></script>
+    
+    <script>
+        let dualVisualizer = null;
+        let testBlobCounter = 0;
+        
+        // Test blob data
+        const testBlobs = [
+            {
+                id: 'test_1',
+                category: 'hope',
+                text: 'I feel hopeful about the future and excited about new possibilities.',
+                confidence: 0.8,
+                score: 0.7,
+                speaker_name: 'Test User 1'
+            },
+            {
+                id: 'test_2',
+                category: 'sorrow',
+                text: 'Sometimes I feel overwhelmed by sadness and uncertainty.',
+                confidence: 0.6,
+                score: -0.5,
+                speaker_name: 'Test User 2'
+            },
+            {
+                id: 'test_3',
+                category: 'transformative',
+                text: 'This experience has changed me in ways I never expected.',
+                confidence: 0.9,
+                score: 0.3,
+                speaker_name: 'Test User 3'
+            },
+            {
+                id: 'test_4',
+                category: 'ambivalent',
+                text: 'I have mixed feelings about this situation.',
+                confidence: 0.4,
+                score: 0.1,
+                speaker_name: 'Test User 4'
+            },
+            {
+                id: 'test_5',
+                category: 'reflective_neutral',
+                text: 'I am thinking deeply about what this all means.',
+                confidence: 0.7,
+                score: 0.0,
+                speaker_name: 'Test User 5'
+            }
+        ];
+        
+        async function initTest() {
+            console.log('🧪 Starting Dual Visualizer Test...');
+            
+            try {
+                const container = document.getElementById('visualization-container');
+                
+                // Check if classes are available
+                if (typeof DualEmotionVisualizer === 'undefined') {
+                    updateStatus('❌ DualEmotionVisualizer not found');
+                    return;
+                }
+                
+                if (typeof IntegratedEmotionVisualizer === 'undefined') {
+                    updateStatus('⚠️ IntegratedEmotionVisualizer not found');
+                }
+                
+                if (typeof BlobEmotionVisualizer === 'undefined') {
+                    updateStatus('⚠️ BlobEmotionVisualizer not found');
+                }
+                
+                // Initialize dual visualizer
+                dualVisualizer = new DualEmotionVisualizer();
+                await dualVisualizer.init(container);
+                
+                // Setup keyboard shortcuts
+                dualVisualizer.setupKeyboardShortcuts();
+                
+                updateStatus('✅ Dual Visualizer initialized');
+                updateModeInfo();
+                updateBlobCount();
+                
+                // Add some test data after a delay
+                setTimeout(() => {
+                    addTestBlob();
+                    addTestBlob();
+                    addTestBlob();
+                }, 2000);
+                
+            } catch (error) {
+                console.error('❌ Test initialization failed:', error);
+                updateStatus(`❌ Error: ${error.message}`);
+            }
+        }
+        
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+            console.log(message);
+        }
+        
+        function updateModeInfo() {
+            if (dualVisualizer) {
+                const modeInfo = dualVisualizer.getCurrentMode();
+                document.getElementById('mode-info').textContent = `Mode: ${modeInfo.info.name}`;
+            }
+        }
+        
+        function updateBlobCount() {
+            if (dualVisualizer) {
+                const count = dualVisualizer.getBlobCount();
+                document.getElementById('blob-count').textContent = `Blobs: ${count}`;
+            }
+        }
+        
+        function testVortexMode() {
+            if (dualVisualizer) {
+                dualVisualizer.switchToMode('vortex');
+                updateModeInfo();
+                updateStatus('🌀 Switched to Vortex mode');
+            }
+        }
+        
+        function testBlobMode() {
+            if (dualVisualizer) {
+                dualVisualizer.switchToMode('blobs');
+                updateModeInfo();
+                updateStatus('🫧 Switched to Blob mode');
+            }
+        }
+        
+        function testToggle() {
+            if (dualVisualizer) {
+                dualVisualizer.toggleMode();
+                updateModeInfo();
+                updateStatus('🔄 Toggled mode');
+            }
+        }
+        
+        function addTestBlob() {
+            if (dualVisualizer && testBlobs.length > 0) {
+                const blob = testBlobs[testBlobCounter % testBlobs.length];
+                blob.id = `test_${Date.now()}_${testBlobCounter}`;
+                
+                dualVisualizer.addBlob(blob);
+                testBlobCounter++;
+                
+                updateBlobCount();
+                updateStatus(`➕ Added test blob: ${blob.category}`);
+            }
+        }
+        
+        function clearBlobs() {
+            if (dualVisualizer) {
+                dualVisualizer.clearAllBlobs();
+                updateBlobCount();
+                updateStatus('🧹 Cleared all blobs');
+            }
+        }
+        
+        // Initialize when page loads
+        window.addEventListener('load', initTest);
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (dualVisualizer) {
+                // The visualizers should handle resize automatically
+                console.log('📏 Window resized');
+            }
+        });
+    </script>
+</body>
+</html> 

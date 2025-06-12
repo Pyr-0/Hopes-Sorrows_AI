@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, send_from_directory
 from flask_socketio import SocketIO, emit
 import os
 import sys
@@ -65,6 +65,11 @@ def main_app():
 def debug():
     """Debug page for testing GLSL visualization"""
     return render_template('debug.html')
+
+@app.route('/test_toggle')
+def test_toggle():
+    """Test page for dual visualizer toggle functionality"""
+    return send_from_directory('.', 'test_toggle.html')
 
 @app.route('/api/get_all_blobs')
 def get_all_blobs():

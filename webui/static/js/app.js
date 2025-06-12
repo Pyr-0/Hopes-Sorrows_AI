@@ -70,11 +70,8 @@ class HopesSorrowsApp {
             // Initialize WebSocket connection
             await this.initializeSocket();
             
-            // Initialize Dual Emotion Visualizer
+            // Initialize Dual Emotion Visualizer (it will load existing blobs)
             await this.initializeVisualizer();
-            
-            // Load existing blobs
-            await this.loadExistingBlobs();
             
             // Initialize recording functionality
             this.initializeRecording();
