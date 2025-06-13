@@ -353,14 +353,19 @@ class AudioRecorder {
                 // Handle different error types
                 if (result.status === 'no_speech') {
                     this.showError('No speech detected in your recording. Please try speaking more clearly.');
+                } else if (result.status === 'processing_error') {
+                    this.showError('Error processing your audio. Please try again.');
                 } else {
-                    this.showError(result.error || 'Failed to analyze your recording. Please try again.');
+                    this.showError(result.error || 'Failed to upload your recording. Please try again.');
                 }
+                
+                this.resetToInitialState();
             }
             
         } catch (error) {
-            console.error('Error processing recording:', error);
-            this.showError('Failed to upload your recording. Please check your connection and try again.');
+            console.error('❌ Processing error:', error);
+            this.showError('Network error. Please check your connection and try again.');
+            this.resetToInitialState();
         }
     }
     

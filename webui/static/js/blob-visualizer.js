@@ -66,17 +66,36 @@ class BlobEmotionVisualizer {
     setupP5() {
         const self = this;
         
+        // Create P5 container if it doesn't exist
+        let p5Container = this.container.querySelector('#p5-blob-container');
+        if (!p5Container) {
+            p5Container = document.createElement('div');
+            p5Container.id = 'p5-blob-container';
+            p5Container.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                z-index: 2;
+                width: 100%;
+                height: 100%;
+                pointer-events: auto;
+                background: transparent;
+            `;
+            this.container.appendChild(p5Container);
+        }
+        
         const sketch = (p) => {
             self.p5Instance = p;
             
             p.setup = () => {
                 const canvas = p.createCanvas(window.innerWidth, window.innerHeight);
-                canvas.parent(self.container);
+                canvas.parent('p5-blob-container');
+                canvas.style('pointer-events', 'auto');
+                canvas.style('background', 'transparent');
                 canvas.style('position', 'absolute');
                 canvas.style('top', '0');
                 canvas.style('left', '0');
-                canvas.style('z-index', '1');
-                canvas.style('pointer-events', 'auto');
+                canvas.style('z-index', '2');
                 
                 p.colorMode(p.RGB, 255);
                 
@@ -85,6 +104,7 @@ class BlobEmotionVisualizer {
                 
                 console.log('✅ P5.js canvas setup complete');
                 console.log('🫧 Blob visualizer ready for blobs');
+                console.log('🎯 Canvas size:', window.innerWidth, 'x', window.innerHeight);
                 
                 // Add a test blob after setup
                 setTimeout(() => {
@@ -100,8 +120,8 @@ class BlobEmotionVisualizer {
             };
             
             p.draw = () => {
-                // Dark gradient background
-                self.drawBackground();
+                // Clear canvas with transparent background
+                p.clear();
                 
                 // Update and draw background particles
                 self.updateBackgroundParticles();
@@ -126,7 +146,22 @@ class BlobEmotionVisualizer {
             };
             
             p.mousePressed = () => {
-                self.handleClick(p.mouseX, p.mouseY);
+                // Get the actual screen coordinates
+                const rect = p.canvas.getBoundingClientRect();
+                const screenX = p.mouseX + rect.left;
+                const screenY = p.mouseY + rect.top;
+                
+                console.log('🎯 Mouse pressed at canvas coords:', p.mouseX, p.mouseY);
+                console.log('🎯 Screen coords:', screenX, screenY);
+                console.log('🎯 Canvas rect:', rect);
+                console.log('🎯 Available blobs:', self.blobs.length);
+                
+                // Use canvas coordinates directly for blob detection
+                if (!self.isClickOnUIElement(screenX, screenY)) {
+                    self.handleInteraction(p.mouseX, p.mouseY);
+                } else {
+                    console.log('🚫 Click blocked by UI element');
+                }
             };
             
             p.mouseMoved = () => {
@@ -244,26 +279,49 @@ class BlobEmotionVisualizer {
         return eccentricities[category] || 1.0;
     }
     
+    /**
+     * Draw emotion blobs with glow effects
+     */
     drawBlobs() {
+        if (!this.p5Instance) return;
+        
         const p = this.p5Instance;
         
-        // Debug: Log blob count
-        if (this.blobs.length > 0 && Math.floor(this.time * 60) % 60 === 0) {
-            console.log(`🫧 Drawing ${this.blobs.length} blobs`);
+        if (this.blobs.length > 0) {
+            console.log('🎨 Drawing', this.blobs.length, 'blobs');
         }
         
         this.blobs.forEach((blob, index) => {
+            if (blob.opacity <= 0.01) {
+                console.log(`🎨 Skipping blob ${index} (opacity: ${blob.opacity})`);
+                return; // Skip invisible blobs
+            }
+            
             const color = this.sentimentColors[blob.category] || [255, 255, 255];
             
             // Debug: Log first blob position occasionally
             if (index === 0 && Math.floor(this.time * 60) % 120 === 0) {
-                console.log(`🫧 Drawing blob ${index}: pos(${Math.round(blob.x)}, ${Math.round(blob.y)}), radius: ${Math.round(blob.currentRadius)}, color: [${color.join(',')}]`);
+                console.log(`🎨 Drawing blob ${index}: pos(${Math.round(blob.x)}, ${Math.round(blob.y)}), radius: ${Math.round(blob.currentRadius)}, color: [${color.join(',')}]`);
             }
             
-            // Draw blob glow
-            p.fill(color[0], color[1], color[2], 60); // Increased from 30
+            // Draw outer glow (largest)
+            p.fill(
+                color[0],
+                color[1],
+                color[2],
+                30
+            );
             p.noStroke();
-            p.circle(blob.x, blob.y, blob.currentRadius * 2.5);
+            p.circle(blob.x, blob.y, blob.currentRadius * 3);
+            
+            // Draw middle glow
+            p.fill(
+                color[0],
+                color[1],
+                color[2],
+                60
+            );
+            p.circle(blob.x, blob.y, blob.currentRadius * 2);
             
             // Draw blob core with organic shape
             p.fill(color[0], color[1], color[2], 255); // Increased from 200
@@ -305,8 +363,20 @@ class BlobEmotionVisualizer {
         });
     }
     
-    handleClick(x, y) {
+    /**
+     * Handle mouse interaction with blobs
+     */
+    handleInteraction(x, y) {
+        console.log('🎯 Handle interaction called at:', x, y);
+        
+        // Check if any UI elements are currently visible that should block interaction
+        if (this.shouldBlockInteraction()) {
+            console.log('🚫 Interaction blocked by UI state');
+            return;
+        }
+        
         const clickedBlob = this.getBlobAt(x, y);
+        console.log('🎯 Clicked blob:', clickedBlob);
         
         if (clickedBlob) {
             const blobIndex = this.blobs.indexOf(clickedBlob);
@@ -325,22 +395,69 @@ class BlobEmotionVisualizer {
         } else {
             this.selectedBlobIndex = -1;
             this.hideTooltip();
+            console.log('🎯 No blob clicked, clearing selection');
         }
+    }
+    
+    /**
+     * Check if blob interactions should be blocked due to UI state
+     */
+    shouldBlockInteraction() {
+        // Check for visible UI panels that should block blob interaction
+        const blockers = [
+            '.instructions-panel:not(.hidden)',
+            '.analysis-confirmation.visible',
+            '.loading-overlay:not(.hidden)',
+            '.error-panel.visible',
+            '.error-panel.active'
+        ];
+        
+        const isBlocked = blockers.some(selector => {
+            const element = document.querySelector(selector);
+            const isVisible = element && element.offsetParent !== null;
+            if (isVisible) {
+                console.log('🚫 Interaction blocked by:', selector);
+            }
+            return isVisible;
+        });
+        
+        return isBlocked;
     }
     
     updateHover(x, y) {
         this.hoveredBlob = this.getBlobAt(x, y);
     }
     
+    /**
+     * Find blob at coordinates
+     */
     getBlobAt(x, y) {
+        console.log('🎯 Looking for blob at:', x, y);
+        console.log('🎯 Total blobs to check:', this.blobs.length);
+        
         // Find blob at coordinates (reverse order to get topmost)
         for (let i = this.blobs.length - 1; i >= 0; i--) {
             const blob = this.blobs[i];
-            const distance = Math.sqrt((x - blob.x) ** 2 + (y - blob.y) ** 2);
-            if (distance <= blob.currentRadius) {
-                return blob;
+            if (blob.opacity > 0.1) { // Only check visible blobs
+                const distance = Math.sqrt(
+                    Math.pow(x - blob.x, 2) + Math.pow(y - blob.y, 2)
+                );
+                
+                // Use the larger glow radius for hit detection (size * 2)
+                const hitRadius = blob.currentRadius * 2;
+                
+                console.log(`🎯 Blob ${i}: pos(${blob.x.toFixed(1)}, ${blob.y.toFixed(1)}) size:${blob.currentRadius} distance:${distance.toFixed(1)} hitRadius:${hitRadius}`);
+                
+                if (distance <= hitRadius) {
+                    console.log('🎯 HIT! Found blob:', blob);
+                    return blob;
+                }
+            } else {
+                console.log(`🎯 Blob ${i}: skipped (opacity: ${blob.opacity})`);
             }
         }
+        
+        console.log('🎯 No blob found at coordinates');
         return null;
     }
     
@@ -435,6 +552,7 @@ class BlobEmotionVisualizer {
             y: window.innerHeight / 2,
             radius: this.calculateBlobSize(blobData),
             currentRadius: this.calculateBlobSize(blobData),
+            opacity: 1.0,
             
             // Orbital motion properties
             orbitRadius: this.calculateOrbitRadius(blobData, categoryCount),
@@ -481,6 +599,50 @@ class BlobEmotionVisualizer {
         const intensityMultiplier = Math.abs(score) * 25; // Increased from 20
         
         return Math.max(25, Math.min(80, baseSize + confidenceMultiplier + intensityMultiplier)); // Increased min/max
+    }
+    
+    /**
+     * Check if click is on UI element
+     */
+    isClickOnUIElement(x, y) {
+        console.log('🎯 Checking if click is on UI element at:', x, y);
+        
+        const elementsAtPoint = document.elementsFromPoint(x, y);
+        console.log('🎯 Elements at point:', elementsAtPoint.map(el => el.tagName + (el.className ? '.' + el.className : '')));
+        
+        for (let element of elementsAtPoint) {
+            // Check for direct UI element classes that should block blob interaction
+            if (element.classList.contains('recording-interface') ||
+                element.classList.contains('recording-panel') ||
+                element.classList.contains('nav-bar') ||
+                element.classList.contains('blob-info-panel') ||
+                element.classList.contains('analysis-confirmation') ||
+                element.classList.contains('instructions-panel') ||
+                element.classList.contains('loading-overlay') ||
+                element.classList.contains('error-panel') ||
+                element.tagName === 'BUTTON' ||
+                element.tagName === 'INPUT' ||
+                element.tagName === 'SELECT' ||
+                element.tagName === 'TEXTAREA') {
+                console.log('🚫 Click blocked by element:', element.tagName, element.className);
+                return true;
+            }
+            
+            // Check for parent containers that should block blob interaction
+            if (element.closest('.recording-interface') ||
+                element.closest('.nav-bar') ||
+                element.closest('.blob-info-panel') ||
+                element.closest('.analysis-confirmation') ||
+                element.closest('.instructions-panel') ||
+                element.closest('.loading-overlay') ||
+                element.closest('.error-panel')) {
+                console.log('🚫 Click blocked by parent container:', element.closest('.recording-interface, .nav-bar, .blob-info-panel, .analysis-confirmation, .instructions-panel, .loading-overlay, .error-panel'));
+                return true;
+            }
+        }
+        
+        console.log('✅ Click not blocked by UI elements');
+        return false;
     }
     
     clearAllBlobs() {

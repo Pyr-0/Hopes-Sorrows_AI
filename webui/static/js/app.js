@@ -401,16 +401,28 @@ class HopesSorrowsApp {
         const viewBtn = document.getElementById('analysis-view-btn');
         
         if (continueBtn) {
-            continueBtn.addEventListener('click', () => {
+            continueBtn.addEventListener('click', (e) => {
+                console.log('🎯 Continue button clicked');
+                e.preventDefault();
+                e.stopPropagation();
                 this.hideAnalysisConfirmation();
             });
+        } else {
+            console.warn('⚠️ Continue button not found');
         }
         
         if (viewBtn) {
-            viewBtn.addEventListener('click', () => {
+            viewBtn.addEventListener('click', (e) => {
+                console.log('🎯 View button clicked');
+                e.preventDefault();
+                e.stopPropagation();
                 this.hideAnalysisConfirmation();
-                this.toggleBlobInfo();
+                setTimeout(() => {
+                    this.toggleBlobInfo();
+                }, 300);
             });
+        } else {
+            console.warn('⚠️ View button not found');
         }
         
         // Error panel dismiss
@@ -575,6 +587,9 @@ class HopesSorrowsApp {
     handleAnalysisComplete(data) {
         console.log('🎉 Analysis complete:', data);
         
+        // Hide processing panel first
+        this.hideProcessingPanel();
+        
         // Add new blobs to visualizer
         if (data.blobs && this.emotionVisualizer) {
             data.blobs.forEach((blobData, index) => {
@@ -585,7 +600,9 @@ class HopesSorrowsApp {
         }
         
         // Show analysis confirmation with detailed results
-        this.showAnalysisConfirmation(data);
+        setTimeout(() => {
+            this.showAnalysisConfirmation(data);
+        }, 500); // Small delay to ensure blobs are added first
         
         // Update stats
         setTimeout(() => {
@@ -872,10 +889,56 @@ class HopesSorrowsApp {
         // Show the panel with animation
         this.elements.analysisConfirmation.classList.add('visible');
         
+        // Re-attach button event listeners after panel is shown
+        setTimeout(() => {
+            const continueBtn = document.getElementById('analysis-continue-btn');
+            const viewBtn = document.getElementById('analysis-view-btn');
+            
+            if (continueBtn) {
+                // Remove any existing listeners
+                continueBtn.replaceWith(continueBtn.cloneNode(true));
+                const newContinueBtn = document.getElementById('analysis-continue-btn');
+                newContinueBtn.addEventListener('click', (e) => {
+                    console.log('🎯 Continue button clicked');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.hideAnalysisConfirmation();
+                });
+            }
+            
+            if (viewBtn) {
+                // Remove any existing listeners
+                viewBtn.replaceWith(viewBtn.cloneNode(true));
+                const newViewBtn = document.getElementById('analysis-view-btn');
+                newViewBtn.addEventListener('click', (e) => {
+                    console.log('🎯 View button clicked');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.hideAnalysisConfirmation();
+                    setTimeout(() => {
+                        this.toggleBlobInfo();
+                    }, 300);
+                });
+            }
+            
+            // Add backdrop click handler
+            const handleBackdropClick = (e) => {
+                // Only close if clicking the backdrop (not the content)
+                if (e.target === this.elements.analysisConfirmation && !e.target.closest('.analysis-confirmation-content')) {
+                    console.log('🎯 Backdrop clicked, closing analysis confirmation');
+                    this.hideAnalysisConfirmation();
+                    this.elements.analysisConfirmation.removeEventListener('click', handleBackdropClick);
+                }
+            };
+            
+            this.elements.analysisConfirmation.addEventListener('click', handleBackdropClick);
+            console.log('✅ Backdrop click handler attached');
+        }, 100);
+        
         // Animate panel entrance
         if (typeof anime !== 'undefined') {
             anime({
-                targets: this.elements.analysisConfirmation,
+                targets: this.elements.analysisConfirmation.querySelector('.analysis-confirmation-content'),
                 scale: [0.8, 1],
                 opacity: [0, 1],
                 duration: 800,
@@ -911,8 +974,12 @@ class HopesSorrowsApp {
      * Hide analysis confirmation
      */
     hideAnalysisConfirmation() {
+        console.log('🎯 Hiding analysis confirmation');
         if (this.elements.analysisConfirmation) {
             this.elements.analysisConfirmation.classList.remove('visible');
+            console.log('✅ Analysis confirmation hidden');
+        } else {
+            console.warn('⚠️ Analysis confirmation element not found');
         }
     }
     
