@@ -419,7 +419,33 @@ class HopesSorrowsApp {
             });
         }
         
-
+        // Category toggle controls
+        const categoryToggles = document.querySelectorAll('.category-toggle');
+        categoryToggles.forEach(toggle => {
+            toggle.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const category = toggle.dataset.category;
+                const isActive = toggle.classList.contains('active');
+                
+                // Toggle the visual state
+                if (isActive) {
+                    toggle.classList.remove('active');
+                    toggle.classList.add('inactive');
+                } else {
+                    toggle.classList.remove('inactive');
+                    toggle.classList.add('active');
+                }
+                
+                // Update the visualizer
+                if (this.emotionVisualizer && this.emotionVisualizer.setCategoryVisibility) {
+                    this.emotionVisualizer.setCategoryVisibility(category, !isActive);
+                }
+                
+                console.log(`🎨 Toggled category ${category}: ${!isActive ? 'visible' : 'hidden'}`);
+            });
+        });
         
         console.log('✅ UI interactions initialized');
     }

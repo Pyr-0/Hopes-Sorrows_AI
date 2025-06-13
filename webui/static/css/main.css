@@ -717,7 +717,7 @@ h1, h2, h3, h4, h5, h6 {
     bottom: 25px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 1000;
+    z-index: 100;
     pointer-events: auto;
     max-height: calc(100vh - 120px);
     overflow: visible;
@@ -1440,6 +1440,89 @@ h1, h2, h3, h4, h5, h6 {
     font-weight: 400;
     font-family: 'Inter', sans-serif;
     opacity: 0.8;
+}
+
+/* Category Filter Controls */
+.category-controls {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    z-index: 999;
+}
+
+.category-toggles {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: rgba(10, 25, 35, 0.9);
+    border: 1px solid rgba(102, 204, 179, 0.2);
+    border-radius: 12px;
+    padding: 8px;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.category-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 11px;
+    font-weight: 500;
+    border: 1px solid transparent;
+    color: rgba(255, 255, 255, 0.8);
+    user-select: none;
+}
+
+.category-toggle.active {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.category-toggle.inactive {
+    opacity: 0.4;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.category-toggle:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateX(-2px);
+}
+
+.category-toggle .category-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.category-toggle.hope .category-dot {
+    background: #66ccb3;
+    box-shadow: 0 0 6px rgba(102, 204, 179, 0.5);
+}
+
+.category-toggle.sorrow .category-dot {
+    background: #4d99cc;
+    box-shadow: 0 0 6px rgba(77, 153, 204, 0.5);
+}
+
+.category-toggle.transformative .category-dot {
+    background: #80b3cc;
+    box-shadow: 0 0 6px rgba(128, 179, 204, 0.5);
+}
+
+.category-toggle.ambivalent .category-dot {
+    background: #99ccb3;
+    box-shadow: 0 0 6px rgba(153, 204, 179, 0.5);
+}
+
+.category-toggle.reflective_neutral .category-dot {
+    background: #b3cccc;
+    box-shadow: 0 0 6px rgba(179, 204, 204, 0.5);
 }
 
 /* Category Colors */
@@ -2652,7 +2735,7 @@ h1, h2, h3, h4, h5, h6 {
     max-width: 600px;
     width: 90%;
     text-align: center;
-    z-index: 300;
+    z-index: 500;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
     opacity: 0;
     pointer-events: none;
