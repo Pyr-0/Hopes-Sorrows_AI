@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GLSL Vortex Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        
+        #visualization-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        #debug-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div id="visualization-container"></div>
+    <div id="debug-info">
+        <div>GLSL Vortex Test</div>
+        <div id="status">Initializing...</div>
+        <div id="blob-count">Blobs: 0</div>
+    </div>
+
+    <script src="static/js/emotion-visualizer.js"></script>
+    <script>
+        console.log('🚀 Starting GLSL Vortex Test...');
+        
+        let visualizer;
+        const statusEl = document.getElementById('status');
+        const blobCountEl = document.getElementById('blob-count');
+        
+        async function initTest() {
+            try {
+                statusEl.textContent = 'Creating visualizer...';
+                
+                if (typeof IntegratedEmotionVisualizer === 'undefined') {
+                    throw new Error('IntegratedEmotionVisualizer not found');
+                }
+                
+                visualizer = new IntegratedEmotionVisualizer();
+                
+                statusEl.textContent = 'Initializing WebGL...';
+                const container = document.getElementById('visualization-container');
+                
+                await visualizer.init(container);
+                
+                statusEl.textContent = 'Running! Click to interact.';
+                
+                // Update blob count periodically
+                setInterval(() => {
+                    if (visualizer) {
+                        blobCountEl.textContent = `Blobs: ${visualizer.getBlobCount()}`;
+                    }
+                }, 1000);
+                
+                console.log('✅ Test initialization complete');
+                
+            } catch (error) {
+                console.error('❌ Test failed:', error);
+                statusEl.textContent = `Error: ${error.message}`;
+                statusEl.style.color = '#ff6b6b';
+            }
+        }
+        
+        // Start the test
+        initTest();
+    </script>
+</body>
+</html> 

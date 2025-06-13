@@ -40,9 +40,51 @@
         </div>
         
         <!-- Blob Info Toggle Button -->
-        <button id="blob-info-toggle" class="blob-info-toggle" title="Toggle Emotional Landscape">
-            📊
+        <button id="blob-info-toggle" class="blob-info-toggle" title="Toggle Emotion Categories">
+            <div class="toggle-icon">🎨</div>
+            <div class="toggle-label">Emotions</div>
         </button>
+        
+        <!-- Emotion Categories Panel -->
+        <div id="emotion-categories-panel" class="emotion-categories-panel">
+            <div class="panel-header">
+                <h3>Emotion Categories</h3>
+                <button class="close-btn">×</button>
+            </div>
+            <div class="categories-list">
+                <div class="category-item" data-category="hope">
+                    <div class="category-dot"></div>
+                    <span class="category-name">Hope</span>
+                    <span class="category-count">0</span>
+                </div>
+                <div class="category-item" data-category="sorrow">
+                    <div class="category-dot"></div>
+                    <span class="category-name">Sorrow</span>
+                    <span class="category-count">0</span>
+                </div>
+                <div class="category-item" data-category="transformative">
+                    <div class="category-dot"></div>
+                    <span class="category-name">Transformative</span>
+                    <span class="category-count">0</span>
+                </div>
+                <div class="category-item" data-category="ambivalent">
+                    <div class="category-dot"></div>
+                    <span class="category-name">Ambivalent</span>
+                    <span class="category-count">0</span>
+                </div>
+                <div class="category-item" data-category="reflective_neutral">
+                    <div class="category-dot"></div>
+                    <span class="category-name">Reflective</span>
+                    <span class="category-count">0</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Visualizer Mode Toggle -->
+        <div id="visualizer-mode-toggle" class="visualizer-mode-toggle" title="Switch Visualization Mode">
+            <button class="mode-btn active" data-mode="vortex">🌀</button>
+            <button class="mode-btn" data-mode="blobs">🫧</button>
+        </div>
         
         <!-- Recording Interface -->
         <div class="recording-interface">
@@ -204,6 +246,9 @@
     <script src="{{ url_for('static', filename='js/anime.min.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
     <script src="{{ url_for('static', filename='js/emotion-visualizer.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/integrated-emotion-visualizer.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/blob-visualizer.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/dual-visualizer.js') }}"></script>
     <script src="{{ url_for('static', filename='js/audio-recorder.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     

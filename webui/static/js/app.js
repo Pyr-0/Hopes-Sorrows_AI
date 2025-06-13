@@ -18,7 +18,7 @@ class HopesSorrowsApp {
         // UI Elements
         this.elements = {};
         
-        // Enhanced Emotion Visualizer (GLSL-based)
+        // Dual Emotion Visualizer (GLSL + Blobs)
         this.emotionVisualizer = null;
         
         // Blob management
