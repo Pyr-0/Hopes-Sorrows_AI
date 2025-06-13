@@ -199,7 +199,8 @@
     </div>
 
     <!-- Scripts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="{{ url_for('static', filename='js/p5.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/anime.min.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
     <script src="{{ url_for('static', filename='js/emotion-visualizer.js') }}"></script>
     <script src="{{ url_for('static', filename='js/blob-visualizer.js') }}"></script>
