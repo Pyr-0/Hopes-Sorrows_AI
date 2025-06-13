@@ -60,27 +60,49 @@ class HopesSorrowsApp {
     async init() {
         console.log('🚀 Initializing Hopes & Sorrows App with GLSL Enhancement...');
         
+        // Always hide loading overlay after a maximum time
+        const maxLoadingTime = setTimeout(() => {
+            console.warn('⚠️ Maximum loading time reached, forcing initialization to complete');
+            this.hideLoadingOverlay();
+        }, 10000); // 10 seconds max
+        
         try {
             // Show loading overlay
             this.showLoadingOverlay();
             
-            // Initialize UI elements
+            // Initialize UI elements (critical - must succeed)
             this.initializeElements();
             
-            // Initialize WebSocket connection
-            await this.initializeSocket();
+            // Initialize WebSocket connection (with timeout)
+            try {
+                await this.initializeSocket();
+            } catch (error) {
+                console.warn('⚠️ WebSocket initialization failed, continuing without real-time features:', error);
+            }
             
-            // Initialize GLSL-Enhanced Emotion Visualizer
-            await this.initializeVisualizer();
+            // Initialize visualizers (with fallback)
+            try {
+                await this.initializeVisualizer();
+            } catch (error) {
+                console.warn('⚠️ Visualizer initialization failed, using fallback mode:', error);
+                this.showWebGLFallback();
+            }
             
-            // Load existing blobs
-            await this.loadExistingBlobs();
+            // Load existing blobs (non-critical)
+            try {
+                await this.loadExistingBlobs();
+            } catch (error) {
+                console.warn('⚠️ Failed to load existing blobs, starting fresh:', error);
+            }
             
             // Initialize recording functionality
             this.initializeRecording();
             
             // Initialize UI interactions
             this.initializeUI();
+            
+            // Clear the max loading timeout
+            clearTimeout(maxLoadingTime);
             
             // Hide loading overlay
             this.hideLoadingOverlay();
@@ -89,6 +111,7 @@ class HopesSorrowsApp {
             
         } catch (error) {
             console.error('❌ App initialization failed:', error);
+            clearTimeout(maxLoadingTime);
             this.hideLoadingOverlay();
             this.showError('Failed to initialize application. Please refresh the page.');
         }
@@ -151,7 +174,17 @@ class HopesSorrowsApp {
             console.log('🔌 Initializing WebSocket connection...');
             
             try {
-                this.socket = io();
+                // Check if Socket.IO is available
+                if (typeof io === 'undefined') {
+                    console.warn('⚠️ Socket.IO not available, skipping WebSocket connection');
+                    resolve(); // Continue without WebSocket
+                    return;
+                }
+                
+                this.socket = io({
+                    timeout: 3000,
+                    forceNew: true
+                });
                 
                 this.socket.on('connect', () => {
                     console.log('✅ WebSocket connected');
@@ -169,19 +202,26 @@ class HopesSorrowsApp {
                 
                 this.socket.on('error', (error) => {
                     console.error('❌ WebSocket error:', error);
-                    reject(error);
+                    // Don't reject on error, just continue without WebSocket
+                    resolve();
+                });
+                
+                this.socket.on('connect_error', (error) => {
+                    console.warn('⚠️ WebSocket connection error:', error);
+                    resolve(); // Continue without WebSocket
                 });
                 
                 // Set timeout for connection
                 setTimeout(() => {
-                    if (!this.socket.connected) {
-                        reject(new Error('WebSocket connection timeout'));
+                    if (!this.socket || !this.socket.connected) {
+                        console.warn('⚠️ WebSocket connection timeout, continuing without real-time features');
+                        resolve(); // Continue without WebSocket
                     }
-                }, 5000);
+                }, 3000); // Reduced timeout
                 
             } catch (error) {
                 console.error('❌ WebSocket initialization failed:', error);
-                reject(error);
+                resolve(); // Continue without WebSocket instead of rejecting
             }
         });
     }
@@ -193,20 +233,32 @@ class HopesSorrowsApp {
         console.log('🎨 Initializing Emotion Visualizers...');
         
         try {
+            // Check if required classes are available
+            console.log('🔍 Checking visualizer classes...');
+            console.log('EmotionVisualizer available:', typeof EmotionVisualizer !== 'undefined');
+            console.log('BlobEmotionVisualizer available:', typeof BlobEmotionVisualizer !== 'undefined');
+            console.log('p5 available:', typeof p5 !== 'undefined');
+            
             // Initialize background emotion visualizer
             if (typeof EmotionVisualizer !== 'undefined') {
+                console.log('🎨 Initializing background visualizer...');
                 this.backgroundVisualizer = new EmotionVisualizer();
                 await this.backgroundVisualizer.init(this.elements.visualizationContainer);
                 console.log('✅ Background visualizer initialized');
+            } else {
+                console.warn('⚠️ EmotionVisualizer class not found, skipping background visualizer');
             }
             
             // Initialize blob emotion visualizer
             if (typeof BlobEmotionVisualizer !== 'undefined') {
+                console.log('🫧 Initializing blob visualizer...');
                 this.emotionVisualizer = new BlobEmotionVisualizer();
                 await this.emotionVisualizer.init(this.elements.visualizationContainer);
                 console.log('✅ Blob visualizer initialized');
             } else {
-                throw new Error('BlobEmotionVisualizer class not found');
+                console.warn('⚠️ BlobEmotionVisualizer class not found, using fallback');
+                this.showWebGLFallback();
+                return; // Don't throw error, just continue
             }
             
             console.log('✅ All visualizers initialized successfully');
@@ -367,15 +419,7 @@ class HopesSorrowsApp {
             });
         }
         
-        // Blob info panel close button
-        const blobInfoClose = document.querySelector('.blob-info-close');
-        if (blobInfoClose) {
-            blobInfoClose.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.toggleBlobInfo(); // This will close it if it's open
-            });
-        }
+
         
         console.log('✅ UI interactions initialized');
     }
@@ -904,17 +948,47 @@ class HopesSorrowsApp {
      * Show WebGL fallback message
      */
     showWebGLFallback() {
+        console.log('🎨 Setting up fallback visualization mode...');
+        
         const fallbackHTML = `
-            <div class="webgl-fallback">
-                <h3>WebGL Not Available</h3>
-                <p>Your browser doesn't support WebGL or it's disabled.</p>
-                <p>The visualization will use a simplified version.</p>
+            <div class="webgl-fallback" style="
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                text-align: center;
+                color: #66ccb3;
+                background: rgba(10, 25, 35, 0.9);
+                padding: 2rem;
+                border-radius: 12px;
+                border: 1px solid rgba(102, 204, 179, 0.3);
+                backdrop-filter: blur(10px);
+                z-index: 10;
+            ">
+                <h3 style="margin-bottom: 1rem; color: #66ccb3;">🎨 Simplified Mode</h3>
+                <p style="margin-bottom: 0.5rem; color: rgba(255, 255, 255, 0.8);">Visualization components are loading...</p>
+                <p style="color: rgba(255, 255, 255, 0.6); font-size: 0.9rem;">The recording functionality is still available!</p>
             </div>
         `;
         
         if (this.elements.visualizationContainer) {
             this.elements.visualizationContainer.innerHTML = fallbackHTML;
         }
+        
+        // Create a simple mock visualizer for basic functionality
+        this.emotionVisualizer = {
+            addBlob: (blobData) => {
+                console.log('📊 Blob added (fallback mode):', blobData);
+            },
+            getBlobCount: () => 0,
+            getCategoryCounts: () => ({
+                hope: 0,
+                sorrow: 0,
+                transformative: 0,
+                ambivalent: 0,
+                reflective_neutral: 0
+            })
+        };
     }
     
     /**
