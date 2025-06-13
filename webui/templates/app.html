@@ -9,9 +9,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- WebGL/GLSL Support -->
-    <meta name="webgl" content="required">
-    <meta name="gpu-accelerated" content="true">
+    <!-- Visualization Support -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 </head>
 <body class="app-page">
     <!-- Navigation -->
@@ -30,7 +29,7 @@
 
     <!-- Main App Container -->
     <main class="app-container">
-        <!-- GLSL-Enhanced Visualization Container -->
+        <!-- Emotion Visualization Container -->
         <div id="visualization-container" style="position: relative; width: 100vw; height: 100vh; overflow: hidden;">
             <!-- The IntegratedEmotionVisualizer will create its own canvas here -->
         </div>
@@ -235,7 +234,7 @@
     <div id="loading-overlay" class="loading-overlay">
         <div class="loading-content">
             <div class="loading-spinner"></div>
-            <div class="loading-text">Loading GLSL-enhanced emotional landscape...</div>
+            <div class="loading-text">Loading emotional landscape...</div>
         </div>
     </div>
 
@@ -248,24 +247,24 @@
     <script src="{{ url_for('static', filename='js/audio-recorder.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     
-    <!-- WebGL Fallback Detection -->
+    <!-- Visualization Support Detection -->
     <script>
-        // Check for WebGL support
-        function checkWebGLSupport() {
+        // Check for required features
+        function checkVisualizationSupport() {
             try {
+                // Check for Canvas 2D support
                 const canvas = document.createElement('canvas');
-                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-                return !!gl;
+                const ctx = canvas.getContext('2d');
+                return !!ctx;
             } catch (e) {
                 return false;
             }
         }
         
-        if (!checkWebGLSupport()) {
-            console.warn('⚠️ WebGL not supported - falling back to basic visualization');
-            // The visualizer will handle this gracefully
+        if (!checkVisualizationSupport()) {
+            console.warn('⚠️ Canvas 2D not supported - visualization may not work properly');
         } else {
-            console.log('✅ WebGL support detected');
+            console.log('✅ Canvas 2D support detected');
         }
     </script>
 </body>

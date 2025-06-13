@@ -1,6 +1,6 @@
 /**
  * Hopes & Sorrows - Main Application Controller
- * Enhanced with GLSL-based emotion visualization
+ * Interactive emotion visualization using P5.js and Canvas 2D
  */
 
 class HopesSorrowsApp {
@@ -18,7 +18,7 @@ class HopesSorrowsApp {
         // UI Elements
         this.elements = {};
         
-        // Dual Emotion Visualizer (GLSL + Blobs)
+        // Emotion Visualizers
         this.emotionVisualizer = null;
         
         // Blob management
@@ -60,7 +60,7 @@ class HopesSorrowsApp {
      * Initialize the application
      */
     async init() {
-        console.log('🚀 Initializing Hopes & Sorrows App with GLSL Enhancement...');
+        console.log('🚀 Initializing Hopes & Sorrows App...');
         
         // Always hide loading overlay after a maximum time
         const maxLoadingTime = setTimeout(() => {
@@ -86,8 +86,8 @@ class HopesSorrowsApp {
             try {
                 await this.initializeVisualizer();
             } catch (error) {
-                console.warn('⚠️ Visualizer initialization failed, using fallback mode:', error);
-                this.showWebGLFallback();
+                console.warn('⚠️ Visualizer initialization failed:', error);
+                this.showError('Visualization system failed to initialize. Some features may not work properly.');
             }
             
             // Load existing blobs (non-critical)
@@ -229,7 +229,7 @@ class HopesSorrowsApp {
     }
     
     /**
-     * Initialize GLSL-Enhanced Emotion Visualizer
+     * Initialize Emotion Visualizers
      */
     async initializeVisualizer() {
         console.log('🎨 Initializing Emotion Visualizers...');
@@ -258,18 +258,13 @@ class HopesSorrowsApp {
                 await this.emotionVisualizer.init(this.elements.visualizationContainer);
                 console.log('✅ Blob visualizer initialized');
             } else {
-                console.warn('⚠️ BlobEmotionVisualizer class not found, using fallback');
-                this.showWebGLFallback();
-                return; // Don't throw error, just continue
+                throw new Error('BlobEmotionVisualizer class not found');
             }
             
             console.log('✅ All visualizers initialized successfully');
             
         } catch (error) {
             console.error('❌ Visualizer initialization failed:', error);
-            
-            // Show fallback message
-            this.showWebGLFallback();
             throw error;
         }
     }
@@ -1489,52 +1484,7 @@ class HopesSorrowsApp {
         console.log('📊 Updated blob stats:', categoryCounts);
     }
     
-    /**
-     * Show WebGL fallback message
-     */
-    showWebGLFallback() {
-        console.log('🎨 Setting up fallback visualization mode...');
-        
-        const fallbackHTML = `
-            <div class="webgl-fallback" style="
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                text-align: center;
-                color: #66ccb3;
-                background: rgba(10, 25, 35, 0.9);
-                padding: 2rem;
-                border-radius: 12px;
-                border: 1px solid rgba(102, 204, 179, 0.3);
-                backdrop-filter: blur(10px);
-                z-index: 10;
-            ">
-                <h3 style="margin-bottom: 1rem; color: #66ccb3;">🎨 Simplified Mode</h3>
-                <p style="margin-bottom: 0.5rem; color: rgba(255, 255, 255, 0.8);">Visualization components are loading...</p>
-                <p style="color: rgba(255, 255, 255, 0.6); font-size: 0.9rem;">The recording functionality is still available!</p>
-            </div>
-        `;
-        
-        if (this.elements.visualizationContainer) {
-            this.elements.visualizationContainer.innerHTML = fallbackHTML;
-        }
-        
-        // Create a simple mock visualizer for basic functionality
-        this.emotionVisualizer = {
-            addBlob: (blobData) => {
-                console.log('📊 Blob added (fallback mode):', blobData);
-            },
-            getBlobCount: () => 0,
-            getCategoryCounts: () => ({
-                hope: 0,
-                sorrow: 0,
-                transformative: 0,
-                ambivalent: 0,
-                reflective_neutral: 0
-            })
-        };
-    }
+
     
     /**
      * Generate unique session ID

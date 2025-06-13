@@ -125,25 +125,28 @@ AI/Final_Project/
 ## 🔧 Technology Stack
 
 ### Backend
-- **Flask**: Web framework with WebSocket support
-- **AssemblyAI**: Speech-to-text transcription
-- **Transformers**: Hugging Face sentiment analysis models
-- **OpenAI GPT**: Advanced emotional understanding
-- **SQLAlchemy**: Database ORM
+- **[Flask](https://flask.palletsprojects.com/)**: Web framework with WebSocket support
+- **[AssemblyAI](https://www.assemblyai.com/)**: Speech-to-text transcription and speaker diarization
+- **[Hugging Face Transformers](https://huggingface.co/transformers/)**: AI model library
+  - **Model Used**: [`j-hartmann/emotion-english-distilroberta-base`](https://huggingface.co/j-hartmann/emotion-english-distilroberta-base) - DistilRoBERTa fine-tuned for emotion classification
+- **[OpenAI GPT](https://openai.com/api/)**: Advanced emotional understanding and reasoning
+- **[SQLAlchemy](https://www.sqlalchemy.org/)**: Database ORM
 - **SQLite**: Local data storage
 
 ### Frontend
 - **Vanilla JavaScript**: Core application logic
-- **P5.js**: Creative coding and visualizations
-- **Anime.js**: Smooth animations and transitions
-- **WebSocket**: Real-time communication
-- **WebAudio API**: Microphone access and recording
+- **[P5.js](https://p5js.org/)**: Creative coding and emotion blob visualizations
+- **Canvas 2D API**: Background particle effects and gradients
+- **[Anime.js](https://animejs.com/)**: Smooth animations and transitions
+- **[Socket.IO](https://socket.io/)**: Real-time WebSocket communication
+- **[WebAudio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)**: Microphone access and recording
 
 ### AI & Analysis
-- **Speaker Diarization**: Multi-speaker identification
-- **Sentiment Classification**: Emotion categorization
+- **Speaker Diarization**: Multi-speaker identification via AssemblyAI
+- **Emotion Classification**: 7-emotion model (anger, disgust, fear, joy, neutral, sadness, surprise)
+- **Sentiment Scoring**: Custom hope/sorrow mapping algorithm
 - **Confidence Scoring**: Analysis reliability metrics
-- **Dual Analysis**: Transformer + LLM validation
+- **Dual Analysis**: Transformer + LLM validation and cross-referencing
 
 ## 🗄️ Database Schema
 
@@ -234,11 +237,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- **AssemblyAI**: Speech-to-text transcription
-- **Hugging Face**: Transformer models
-- **OpenAI**: GPT-based analysis
-- **P5.js Community**: Creative coding framework
-- **Anime.js**: Animation library
+- **[AssemblyAI](https://www.assemblyai.com/)**: Speech-to-text transcription and speaker diarization
+- **[Hugging Face](https://huggingface.co/)**: Transformer models and AI infrastructure
+- **[j-hartmann](https://huggingface.co/j-hartmann)**: Creator of the emotion classification model
+- **[OpenAI](https://openai.com/)**: GPT-based sentiment analysis and reasoning
+- **[P5.js Community](https://p5js.org/community/)**: Creative coding framework and inspiration
+- **[Anime.js](https://animejs.com/)**: Smooth animation library
+- **[Flask Community](https://flask.palletsprojects.com/)**: Web framework and ecosystem
 
 ## 🆘 Troubleshooting
 

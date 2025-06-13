@@ -962,18 +962,7 @@ h1, h2, h3, h4, h5, h6 {
     background: #c0392b;
 }
 
-/* GLSL Canvas */
-#glsl-canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-    z-index: 1;
-    width: 100%;
-    height: 100%;
-    display: block;
-}
-
-/* P5.js Overlay Container */
+/* P5.js Visualization Container */
 #p5-container {
     position: absolute;
     top: 0;
@@ -1060,16 +1049,7 @@ h1, h2, h3, h4, h5, h6 {
     animation: shimmer 1.5s ease-in-out infinite;
 }
 
-/* WebGL Fallback Styles */
-.webgl-fallback {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
-    color: var(--text-secondary);
-    z-index: 10;
-}
+
 
 .record-btn.recording {
     background: linear-gradient(135deg, #e74c3c, #c0392b);
@@ -1211,80 +1191,13 @@ h1, h2, h3, h4, h5, h6 {
     }
 }
 
-/* Enhanced Loading Overlay for GLSL */
+/* Enhanced Loading Overlay */
 .loading-overlay .loading-text {
     background: linear-gradient(45deg, var(--hope-primary), var(--sorrow-primary), var(--transformative-primary));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     animation: gradientShift 3s ease-in-out infinite;
-}
-
-/* GLSL Performance Indicators */
-.performance-indicator {
-    position: absolute;
-    bottom: 20px;
-    right: 20px;
-    background: rgba(0, 0, 0, 0.7);
-    color: var(--text-secondary);
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: var(--font-size-xs);
-    z-index: 100;
-    backdrop-filter: blur(5px);
-}
-
-.performance-indicator.good {
-    color: var(--hope-primary);
-}
-
-.performance-indicator.warning {
-    color: var(--ambivalent-primary);
-}
-
-.performance-indicator.poor {
-    color: var(--sorrow-primary);
-}
-
-/* Enhanced Ripple Effects for GLSL */
-.glsl-ripple {
-    position: absolute;
-    border: 2px solid var(--hope-primary);
-    border-radius: 50%;
-    pointer-events: none;
-    z-index: 5;
-    opacity: 0.6;
-    animation: glslRippleExpand 1s ease-out forwards;
-}
-
-@keyframes glslRippleExpand {
-    0% {
-        width: 0;
-        height: 0;
-        opacity: 0.6;
-    }
-    50% {
-        opacity: 0.3;
-    }
-    100% {
-        width: 200px;
-        height: 200px;
-        opacity: 0;
-    }
-}
-
-/* GLSL Shader Quality Controls (for future use) */
-.shader-controls {
-    position: absolute;
-    top: 100px;
-    left: 20px;
-    background: rgba(0, 0, 0, 0.8);
-    padding: 15px;
-    border-radius: 8px;
-    border: 1px solid var(--border-subtle);
-    backdrop-filter: blur(10px);
-    z-index: 100;
-    display: none; /* Hidden by default */
 }
 
 .timer-progress {
@@ -1298,29 +1211,7 @@ h1, h2, h3, h4, h5, h6 {
     filter: drop-shadow(0 0 8px rgba(102, 204, 179, 0.4));
 }
 
-.shader-controls h4 {
-    color: var(--hope-primary);
-    margin-bottom: var(--spacing-sm);
-    font-size: var(--font-size-sm);
-}
-
-.shader-control {
-    margin-bottom: var(--spacing-sm);
-}
-
-.shader-control label {
-    display: block;
-    margin-bottom: 5px;
-    font-size: var(--font-size-xs);
-    color: var(--text-secondary);
-}
-
-.shader-control input[type="range"] {
-    width: 150px;
-    margin-bottom: 5px;
-}
-
-/* Enhanced Blob Info Panel for GLSL */
+/* Enhanced Blob Info Panel */
 .blob-info-panel {
     background: rgba(21, 21, 21, 0.95);
     backdrop-filter: blur(15px);
@@ -1331,7 +1222,7 @@ h1, h2, h3, h4, h5, h6 {
     box-shadow: 0 0 30px rgba(255, 215, 0, 0.1);
 }
 
-/* Mobile Optimizations for GLSL */
+/* Mobile Optimizations */
 @media (max-width: 768px) {
     #visualization-container {
         width: 100vw;
@@ -1343,19 +1234,6 @@ h1, h2, h3, h4, h5, h6 {
         font-size: 13px;
         padding: 12px;
     }
-    
-    .performance-indicator {
-        bottom: 10px;
-        right: 10px;
-        font-size: 10px;
-        padding: 6px 8px;
-    }
-    
-    .shader-controls {
-        left: 10px;
-        top: 80px;
-        padding: 10px;
-    }
 }
 
 @media (max-width: 480px) {
@@ -1364,40 +1242,6 @@ h1, h2, h3, h4, h5, h6 {
         font-size: 12px;
         padding: 10px;
     }
-}
-
-/* WebGL Context Loss Recovery */
-.webgl-context-lost {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(231, 76, 60, 0.9);
-    color: white;
-    padding: var(--spacing-md);
-    border-radius: 8px;
-    text-align: center;
-    z-index: 1000;
-    backdrop-filter: blur(10px);
-}
-
-.webgl-context-lost h3 {
-    margin-bottom: var(--spacing-sm);
-}
-
-.webgl-context-lost button {
-    background: white;
-    color: var(--ambivalent-primary);
-    border: none;
-    padding: var(--spacing-xs) var(--spacing-md);
-    border-radius: 6px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: var(--transition-fast);
-}
-
-.webgl-context-lost button:hover {
-    background: rgba(255, 255, 255, 0.9);
 }
 
 /* ========================================

@@ -22,7 +22,7 @@
 
 ### **Classification Logic Flow (Before Fix)**
 ```
-Input: "Sex p***. Stupid bestiality."
+Input: "H*** p***."
 ↓
 Pattern Detection: No matches found
 ↓
@@ -91,8 +91,6 @@ if "***" in original_text or "*" in original_text:
 ### **Comprehensive Test Suite**
 | Input | Description | Expected | Result | Status |
 |-------|-------------|----------|--------|--------|
-| `"Sex p***. Stupid bestiality."` | Filtered profanity (original issue) | SORROW | SORROW (69.9%) | ✅ PASS |
-| `"This is f*** terrible"` | Negative sentiment with profanity | SORROW | SORROW (76.8%) | ✅ PASS |
 | `"I love this s***"` | Positive sentiment with profanity | REFLECTIVE_NEUTRAL | REFLECTIVE_NEUTRAL (76.3%) | ✅ PASS |
 | `"What the h*** is happening"` | Neutral sentiment with profanity | SORROW | SORROW (74.9%) | ✅ PASS |
 | `"I am very happy today"` | Clean positive content | HOPE | HOPE (97.7%) | ✅ PASS |
