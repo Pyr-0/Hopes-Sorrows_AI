@@ -1,6 +1,9 @@
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from enum import Enum
+from typing import Dict, Optional, List
+from .advanced_classifier import AdvancedHopeSorrowClassifier, EmotionCategory, ClassificationResult
+from .cli_formatter import format_sentiment_result, format_error
 
 class SentimentLabel(Enum):
 	VERY_POSITIVE = "very_positive"
@@ -16,22 +19,23 @@ class SentimentCategory(Enum):
 
 class Config:
 	# Model configuration
-	SENTIMENT_MODEL = "distilbert-base-uncased-finetuned-sst-2-english" #most acurate so far but only in English
+	SENTIMENT_MODEL = "j-hartmann/emotion-english-distilroberta-base" # Emotion model - CORRECT for this use case
+	# SENTIMENT_MODEL = "distilbert-base-uncased-finetuned-sst-2-english" # Binary sentiment - too simplistic for hope/sorrow only trained for movie reviews 
 	#SENTIMENT_MODEL = 'bhadresh-savani/distilbert-base-uncased-emotion' # Not so acurate
 	#SENTIMENT_MODEL = 'tabularisai/multilingual-sentiment-analysis' # needs a diff score system
 	#SENTIMENT_MODEL = 'nlptown/bert-base-multilingual-uncased-sentiment' # not so accurate
 	
-	# Original thresholds for hope/sorrow categorization
-	SENTIMENT_THRESHOLD_HOPE = 0.3
-	SENTIMENT_THRESHOLD_SORROW = -0.2
+	# Updated thresholds for more accurate sentiment categorization
+	SENTIMENT_THRESHOLD_HOPE = 0.2      # Lowered from 0.3
+	SENTIMENT_THRESHOLD_SORROW = -0.1   # Raised from -0.2
 	
-	# Scoring thresholds for more nuanced sentiment analysis
+	# Updated scoring thresholds for more nuanced sentiment analysis
 	THRESHOLDS = {
-		SentimentLabel.VERY_POSITIVE: 0.8,  # Very positive emotions
-		SentimentLabel.POSITIVE: 0.3,       # Positive emotions
-		SentimentLabel.NEUTRAL: -0.2,       # Neutral emotions
-		SentimentLabel.NEGATIVE: -0.5,      # Negative emotions
-		SentimentLabel.VERY_NEGATIVE: -0.8  # Very negative emotions
+		SentimentLabel.VERY_POSITIVE: 0.6,   # Lowered from 0.8
+		SentimentLabel.POSITIVE: 0.2,        # Lowered from 0.3
+		SentimentLabel.NEUTRAL: -0.1,        # Raised from -0.2
+		SentimentLabel.NEGATIVE: -0.3,       # Raised from -0.5
+		SentimentLabel.VERY_NEGATIVE: -0.6   # Raised from -0.8
 	}
 	
 	# Confidence thresholds
@@ -53,21 +57,25 @@ class SentimentAnalyzer:
 		self.model.to(self.device)
 		print(f"Model loaded successfully on {self.device}")
 		
-	def get_sentiment_label(self, score, confidence):
+		# Initialize advanced classifier
+		self.advanced_classifier = AdvancedHopeSorrowClassifier()
+		
+	def get_sentiment_label(self, score: float, confidence: float) -> str:
 		"""Get sentiment label based on score and confidence."""
 		if confidence < Config.LOW_CONFIDENCE:
 			return SentimentLabel.NEUTRAL.value
 			
-		if score >= Config.THRESHOLDS[SentimentLabel.VERY_POSITIVE]:
-			return SentimentLabel.VERY_POSITIVE.value
-		elif score >= Config.THRESHOLDS[SentimentLabel.POSITIVE]:
-			return SentimentLabel.POSITIVE.value
-		elif score >= Config.THRESHOLDS[SentimentLabel.NEUTRAL]:
-			return SentimentLabel.NEUTRAL.value
-		elif score >= Config.THRESHOLDS[SentimentLabel.NEGATIVE]:
-			return SentimentLabel.NEGATIVE.value
-		else:
+		# Updated logic to better handle negative sentiments
+		if score <= Config.THRESHOLDS[SentimentLabel.VERY_NEGATIVE]:
 			return SentimentLabel.VERY_NEGATIVE.value
+		elif score <= Config.THRESHOLDS[SentimentLabel.NEGATIVE]:
+			return SentimentLabel.NEGATIVE.value
+		elif score <= Config.THRESHOLDS[SentimentLabel.NEUTRAL]:
+			return SentimentLabel.NEUTRAL.value
+		elif score <= Config.THRESHOLDS[SentimentLabel.POSITIVE]:
+			return SentimentLabel.POSITIVE.value
+		else:
+			return SentimentLabel.VERY_POSITIVE.value
 		
 	def get_sentiment_category(self, score):
 		"""Map detailed sentiment to hope/sorrow category."""
@@ -78,12 +86,14 @@ class SentimentAnalyzer:
 		else:
 			return SentimentCategory.NEUTRAL.value
 		
-	def analyze(self, text):
+	def analyze(self, text: str, speaker_id: Optional[str] = None, context_window: Optional[List[str]] = None) -> Dict:
 		"""
-		Analyze the sentiment of the given text with enhanced scoring.
+		Analyze the sentiment of the given text with enhanced scoring and classification.
 		
 		Args:
-			text (str): The text to analyze
+			text: The text to analyze
+			speaker_id: Optional speaker identifier for personalized analysis
+			context_window: Optional list of previous utterances for context
 			
 		Returns:
 			dict: A dictionary containing sentiment analysis results
@@ -93,7 +103,7 @@ class SentimentAnalyzer:
 			return {
 				"score": 0.0,
 				"label": SentimentLabel.NEUTRAL.value,
-				"category": SentimentCategory.NEUTRAL.value,
+				"category": EmotionCategory.REFLECTIVE_NEUTRAL.value,
 				"intensity": 0.0,
 				"confidence": 0.0,
 				"explanation": "Empty text provided."
@@ -111,35 +121,73 @@ class SentimentAnalyzer:
 		probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
 		probs = probs.cpu().numpy()[0]
 		
-		# Calculate sentiment score (-1 to 1 scale)
-		score = float(probs[1] - probs[0])  # Mapped to [-1, 1]
+		# For j-hartmann/emotion-english-distilroberta-base:
+		# The model outputs 7 emotions: [anger, disgust, fear, joy, neutral, sadness, surprise]
+		# We need to map these to a sentiment score for hope/sorrow classification
+
+		# Get emotion probabilities (indices based on model output)
+		emotions = {
+			'anger': probs[0],      # Index 0
+			'disgust': probs[1],    # Index 1  
+			'fear': probs[2],       # Index 2
+			'joy': probs[3],        # Index 3
+			'neutral': probs[4],    # Index 4
+			'sadness': probs[5],    # Index 5
+			'surprise': probs[6]    # Index 6
+		}
+
+		# Map emotions to sentiment score (-1 to 1 scale)
+		# Positive emotions (lean toward hope): joy, surprise
+		# Negative emotions (lean toward sorrow): anger, disgust, fear, sadness
+		# Neutral: neutral
+
+		positive_emotions = emotions['joy'] + emotions['surprise'] * 0.5  # Surprise can be positive or negative
+		negative_emotions = emotions['anger'] + emotions['disgust'] + emotions['fear'] + emotions['sadness']
+		neutral_emotion = emotions['neutral']
+
+		# Calculate sentiment score: positive emotions minus negative emotions
+		# Scale to -1 to 1 range considering neutral as baseline
+		total_emotional = positive_emotions + negative_emotions
+		if total_emotional > 0:
+			score = (positive_emotions - negative_emotions) / (total_emotional + neutral_emotion)
+		else:
+			score = 0.0  # Pure neutral case
+
+		# Calculate confidence as the maximum emotion probability (excluding neutral for more decisive classification)
+		non_neutral_probs = [emotions[key] for key in emotions if key != 'neutral']
+		confidence = float(max(non_neutral_probs) if non_neutral_probs else emotions['neutral'])
 		
-		# Calculate confidence
-		confidence = float(max(probs))
-		
-		# Get sentiment label and category
+		# Get sentiment label
 		label = self.get_sentiment_label(score, confidence)
-		category = self.get_sentiment_category(score)
+		
+		# Get advanced emotion classification
+		classification = self.advanced_classifier.classify_emotion(
+			text=text,
+			sentiment_score=score,
+			speaker_id=speaker_id or "unknown",
+			context_window=context_window
+		)
 		
 		# Calculate intensity (how strong the sentiment is)
 		intensity = abs(score)
-		
-		# Generate explanation based on confidence and intensity
-		if confidence < Config.LOW_CONFIDENCE:
-			explanation = "Low confidence in sentiment analysis."
-		elif intensity < 0.2:
-			explanation = "Neutral sentiment detected."
-		else:
-			explanation = f"Strong {label} sentiment ({category}) detected with {confidence:.2f} confidence."
 		
 		# Return the analysis results
 		return {
 			"score": score,
 			"label": label,
-			"category": category,
+			"category": classification.category.value,
 			"intensity": intensity,
 			"confidence": confidence,
-			"explanation": explanation
+			"classification_confidence": classification.confidence,
+			"matched_patterns": [
+				{
+					"pattern": pattern.description,
+					"weight": weight,
+					"category": pattern.category.value
+				}
+				for pattern, weight in classification.matched_patterns
+			],
+			"explanation": classification.explanation
 		}
 
 # Singleton pattern for efficient reuse
@@ -152,29 +200,33 @@ def get_analyzer():
 		_sentiment_analyzer = SentimentAnalyzer()
 	return _sentiment_analyzer
 
-def analyze_sentiment(text):
-	"""Analyze the sentiment of the given text using the singleton analyzer."""
-	analyzer = get_analyzer()
-	return analyzer.analyze(text)
+def reset_analyzer():
+	"""Reset the singleton analyzer (useful for testing or model changes)."""
+	global _sentiment_analyzer
+	_sentiment_analyzer = None
 
-# Main execution block for testing
-if __name__ == "__main__":
-	# Test cases
-	test_texts = [
-		"I am absolutely thrilled and overjoyed with the results!",
-		"I'm quite happy with how things turned out.",
-		"The weather is okay today.",
-		"I'm a bit disappointed with the outcome.",
-		"I'm absolutely devastated and heartbroken.",
-		"I'm incredibly worried about the future",
-		"Tengo miedo de que me va a decir mi profesor", 
-		"Ich bin ganz zufrieden mit die ergebnise",
-		"I find it so fucking ridiculous how this is working and it upsets me to think of the future",
-		"not sure what to say, I mean, as if it were relevant to mention my hopes and sorrows anyways"
-	]
-		
-	analyzer = get_analyzer()
-	for text in test_texts:
-		result = analyzer.analyze(text)
-		print(f"\nText: {text}")
-		print(f"Result: {result}")
+def analyze_sentiment(text: str, speaker_id: Optional[str] = None, context_window: Optional[List[str]] = None, verbose: bool = True) -> Dict:
+    """
+    Analyze the sentiment of the given text using the singleton analyzer.
+    
+    Args:
+        text: The text to analyze
+        speaker_id: Optional speaker identifier for personalized analysis
+        context_window: Optional list of previous utterances for context
+        verbose: Whether to print formatted output (default: True)
+    
+    Returns:
+        dict: Analysis results
+    """
+    try:
+        analyzer = get_analyzer()
+        result = analyzer.analyze(text, speaker_id, context_window)
+        
+        if verbose:
+            format_sentiment_result(result)
+        
+        return result
+    except Exception as e:
+        if verbose:
+            format_error(f"Error during sentiment analysis: {str(e)}")
+        raise

@@ -51,7 +51,7 @@ class SentimentAnalysis(Base):
     transcription_id = Column(Integer, ForeignKey('transcriptions.id'), nullable=False)
     analyzer_type = Column(Enum(AnalyzerType), nullable=False)
     label = Column(String(20), nullable=False)  # very_positive, positive, neutral, negative, very_negative
-    category = Column(String(10), nullable=False)  # hope, sorrow, neutral
+    category = Column(String(25), nullable=False)  # Updated to support longer emotion categories: hope, sorrow, transformative, ambivalent, reflective_neutral
     score = Column(Float, nullable=False)
     confidence = Column(Float, nullable=False)
     explanation = Column(String, nullable=True)  # Only for LLM analyzer

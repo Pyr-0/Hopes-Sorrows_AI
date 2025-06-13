@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About - Hopes & Sorrows</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="info-page">
+    <!-- Navigation -->
+    <nav class="nav-bar">
+        <div class="nav-container">
+            <a href="/" class="nav-logo">
+                <span class="logo-text">Hopes & Sorrows</span>
+            </a>
+            <div class="nav-links">
+                <a href="/" class="nav-link">Home</a>
+                <a href="/stats" class="nav-link">Statistics</a>
+                <a href="/app" class="nav-link nav-cta">Start Sharing</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="info-hero">
+        <div class="container">
+            <h1 class="page-title">About Hopes & Sorrows</h1>
+            <p class="page-subtitle">
+                An exploration of human emotion through AI-powered sentiment analysis 
+                and organic data visualization
+            </p>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <main class="info-content">
+        <div class="container">
+            
+            <!-- Project Vision -->
+            <section class="content-section">
+                <h2 class="section-title">Our Vision</h2>
+                <div class="content-grid">
+                    <div class="content-text">
+                        <p>
+                            <strong>Hopes & Sorrows</strong> is an interactive art installation that transforms 
+                            human voices into beautiful, living visualizations. We believe that emotions—both 
+                            positive and negative—are essential parts of the human experience that deserve to be 
+                            seen, understood, and appreciated.
+                        </p>
+                        <p>
+                            By sharing your voice, you contribute to a collective emotional tapestry that reveals 
+                            the interconnected nature of human feeling. Watch as similar emotions naturally gravitate 
+                            toward each other, creating organic patterns that reflect our shared humanity.
+                        </p>
+                    </div>
+                    <div class="content-visual">
+                        <div class="emotion-categories">
+                            <div class="category-item hope">
+                                <div class="category-dot"></div>
+                                <span>Hope</span>
+                            </div>
+                            <div class="category-item sorrow">
+                                <div class="category-dot"></div>
+                                <span>Sorrow</span>
+                            </div>
+                            <div class="category-item transformative">
+                                <div class="category-dot"></div>
+                                <span>Transformative</span>
+                            </div>
+                            <div class="category-item ambivalent">
+                                <div class="category-dot"></div>
+                                <span>Ambivalent</span>
+                            </div>
+                            <div class="category-item reflective">
+                                <div class="category-dot"></div>
+                                <span>Reflective</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- How It Works -->
+            <section class="content-section">
+                <h2 class="section-title">How It Works</h2>
+                <div class="process-steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>Voice Recording</h3>
+                            <p>Share your thoughts, experiences, or feelings in up to 44 seconds of audio. 
+                               Your voice is processed locally and securely.</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>AI Analysis</h3>
+                            <p>Advanced transformer-based models analyze your speech, identifying emotional 
+                               nuances across five distinct categories with high accuracy.</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>Organic Visualization</h3>
+                            <p>Your emotions become living, breathing forms that move and interact according 
+                               to natural forces and emotional affinities.</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h3>Collective Beauty</h3>
+                            <p>Join the growing constellation of human emotion, where every voice adds to 
+                               the evolving artwork of shared experience.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Technology -->
+            <section class="content-section">
+                <h2 class="section-title">Technology</h2>
+                <div class="tech-grid">
+                    <div class="tech-card">
+                        <h3>🧠 Sentiment Analysis</h3>
+                        <p>Advanced transformer models classify emotions across five nuanced categories: 
+                           Hope, Sorrow, Transformative, Ambivalent, and Reflective.</p>
+                    </div>
+                    <div class="tech-card">
+                        <h3>🎨 Organic Animation</h3>
+                        <p>Anime.js and P5.js create fluid, organic animations with gravitational forces 
+                           that mirror emotional connections.</p>
+                    </div>
+                    <div class="tech-card">
+                        <h3>🔒 Privacy-Focused</h3>
+                        <p>Audio recordings are processed and immediately deleted. Only transcripts and 
+                           emotional analysis are preserved.</p>
+                    </div>
+                    <div class="tech-card">
+                        <h3>⚡ Real-Time</h3>
+                        <p>WebSocket connections enable live visualization updates as new voices join 
+                           the collective emotional landscape.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Emotional Categories -->
+            <section class="content-section">
+                <h2 class="section-title">Emotional Categories</h2>
+                <div class="categories-detailed">
+                    <div class="category-detail hope-detail">
+                        <div class="category-header">
+                            <div class="category-icon hope-icon"></div>
+                            <h3>Hope</h3>
+                        </div>
+                        <p>Future-oriented positivity, dreams, and aspirations. These blobs float upward 
+                           with gentle, optimistic movements in warm, golden tones.</p>
+                    </div>
+                    <div class="category-detail sorrow-detail">
+                        <div class="category-header">
+                            <div class="category-icon sorrow-icon"></div>
+                            <h3>Sorrow</h3>
+                        </div>
+                        <p>Grief, loss, and melancholy. These forms move with slower, more contemplative 
+                           patterns in deep blues and purples.</p>
+                    </div>
+                    <div class="category-detail transformative-detail">
+                        <div class="category-header">
+                            <div class="category-icon transformative-icon"></div>
+                            <h3>Transformative</h3>
+                        </div>
+                        <p>Growth through adversity, learning from pain. Dynamic, evolving shapes that 
+                           shift between colors, representing change and growth.</p>
+                    </div>
+                    <div class="category-detail ambivalent-detail">
+                        <div class="category-header">
+                            <div class="category-icon ambivalent-icon"></div>
+                            <h3>Ambivalent</h3>
+                        </div>
+                        <p>Mixed emotions, internal conflict. These blobs exhibit contrasting movements 
+                           and colors, representing emotional complexity.</p>
+                    </div>
+                    <div class="category-detail reflective-detail">
+                        <div class="category-header">
+                            <div class="category-icon reflective-icon"></div>
+                            <h3>Reflective</h3>
+                        </div>
+                        <p>Thoughtful contemplation, philosophical musing. Gentle, meditative movements 
+                           in neutral, calming tones.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Call to Action -->
+            <section class="content-section cta-section">
+                <div class="cta-content">
+                    <h2>Ready to Share Your Voice?</h2>
+                    <p>Add your unique emotional signature to the growing collective visualization</p>
+                    <a href="/app" class="btn btn-primary btn-large">
+                        <span class="btn-icon">🎤</span>
+                        Start Recording
+                    </a>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024 Hopes & Sorrows. A project exploring the beauty of human emotion.</p>
+        </div>
+    </footer>
+</body>
+</html> 

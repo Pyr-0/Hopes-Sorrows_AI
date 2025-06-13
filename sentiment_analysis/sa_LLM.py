@@ -3,6 +3,9 @@ import json
 import openai
 from dotenv import load_dotenv
 from enum import Enum
+from typing import Dict, Optional, List
+from .advanced_classifier import AdvancedHopeSorrowClassifier, EmotionCategory, ClassificationResult
+from .cli_formatter import format_sentiment_result, format_error
 
 # Load environment variables from .env file
 load_dotenv()
@@ -54,6 +57,9 @@ class LLMSentimentAnalyzer:
 		self.model_name = model_name or Config.LLM_MODEL
 		print(f"LLM Sentiment Analyzer initialized with model: {self.model_name}")
 		
+		# Initialize advanced classifier
+		self.advanced_classifier = AdvancedHopeSorrowClassifier()
+		
 	def get_sentiment_category(self, score):
 		"""Map detailed sentiment to hope/sorrow category."""
 		if score >= Config.SENTIMENT_THRESHOLD_HOPE:
@@ -63,12 +69,14 @@ class LLMSentimentAnalyzer:
 		else:
 			return SentimentCategory.NEUTRAL.value
 		
-	def analyze(self, text):
+	def analyze(self, text: str, speaker_id: Optional[str] = None, context_window: Optional[List[str]] = None) -> Dict:
 		"""
-		Analyze the sentiment of the given text using an LLM with enhanced scoring.
+		Analyze the sentiment of the given text using an LLM with enhanced scoring and classification.
 
 		Args:
-			text (str): The text to analyze
+			text: The text to analyze
+			speaker_id: Optional speaker identifier for personalized analysis
+			context_window: Optional list of previous utterances for context
 
 		Returns:
 			dict: A dictionary containing sentiment analysis results
@@ -78,7 +86,7 @@ class LLMSentimentAnalyzer:
 			return {
 				"score": 0.0,
 				"label": SentimentLabel.NEUTRAL.value,
-				"category": SentimentCategory.NEUTRAL.value,
+				"category": EmotionCategory.REFLECTIVE_NEUTRAL.value,
 				"intensity": 0.0,
 				"confidence": 0.9,
 				"explanation": "Empty text provided."
@@ -120,8 +128,26 @@ class LLMSentimentAnalyzer:
 			# Validate and normalize the result
 			result = self._validate_and_normalize_result(result)
 			
-			# Add category based on score
-			result["category"] = self.get_sentiment_category(result["score"])
+			# Get advanced emotion classification
+			classification = self.advanced_classifier.classify_emotion(
+				text=text,
+				sentiment_score=result["score"],
+				speaker_id=speaker_id or "unknown",
+				context_window=context_window
+			)
+			
+			# Add classification results
+			result["category"] = classification.category.value
+			result["classification_confidence"] = classification.confidence
+			result["matched_patterns"] = [
+				{
+					"pattern": pattern.description,
+					"weight": weight,
+					"category": pattern.category.value
+				}
+				for pattern, weight in classification.matched_patterns
+			]
+			result["explanation"] = classification.explanation
 			
 			return result
 			
@@ -130,13 +156,13 @@ class LLMSentimentAnalyzer:
 			return {
 				"score": 0.0,
 				"label": SentimentLabel.NEUTRAL.value,
-				"category": SentimentCategory.NEUTRAL.value,
+				"category": EmotionCategory.REFLECTIVE_NEUTRAL.value,
 				"intensity": 0.0,
 				"confidence": 0.0,
 				"explanation": f"Analysis failed due to error: {str(e)}"
 			}
 	
-	def _validate_and_normalize_result(self, result):
+	def _validate_and_normalize_result(self, result: Dict) -> Dict:
 		"""Validate and normalize the sentiment analysis result."""
 		# Ensure all required fields are present
 		required_fields = ["score", "label", "intensity", "confidence", "explanation"]
@@ -184,32 +210,47 @@ def get_analyzer(api_key=None):
 		_llm_sentiment_analyzer = LLMSentimentAnalyzer(api_key=api_key)
 	return _llm_sentiment_analyzer
 
-def analyze_sentiment(text, api_key=None):
-	"""Analyze the sentiment of the given text using the singleton LLM analyzer."""
-	analyzer = get_analyzer(api_key=api_key)
-	return analyzer.analyze(text)
+def analyze_sentiment(text: str, speaker_id: Optional[str] = None, context_window: Optional[List[str]] = None, api_key: Optional[str] = None, verbose: bool = True) -> Dict:
+	"""
+	Analyze the sentiment of the given text using the singleton LLM analyzer.
+	
+	Args:
+		text: The text to analyze
+		speaker_id: Optional speaker identifier for personalized analysis
+		context_window: Optional list of previous utterances for context
+		api_key: Optional OpenAI API key
+		verbose: Whether to print formatted output (default: True)
+	
+	Returns:
+		dict: Analysis results
+	"""
+	try:
+		analyzer = get_analyzer(api_key=api_key)
+		result = analyzer.analyze(text, speaker_id, context_window)
+		
+		if verbose:
+			format_sentiment_result(result)
+		
+		return result
+	except Exception as e:
+		if verbose:
+			format_error(f"Error during sentiment analysis: {str(e)}")
+		raise
 
 # Main execution block for testing
 if __name__ == "__main__":
-	# Test cases
 	test_texts = [
-		"I am absolutely thrilled and overjoyed with the results!",
-		"I'm quite happy with how things turned out.",
-		"The weather is okay today.",
-		"I'm a bit disappointed with the outcome.",
-		"I'm absolutely devastated and heartbroken.",
-		"I'm incredibly worried about the future",
-		"Tengo miedo de que me va a decir mi profesor", 
-		"Ich bin ganz zufrieden mit die ergebnise",
-		"I find it so fucking ridiculous how this is working and it upsets me to think of the future",
-		"not sure what to say, I mean, as if it were relevant to mention my hopes and sorrows anyways"
+		"I will achieve my dreams and make a better future for myself.",
+		"I lost everything I worked for and it's all gone now.",
+		"I was hurt, but I've learned to heal and move forward.",
+		"I'm excited about the future but scared of what might happen.",
+		"I'm thinking about what this experience means to me."
 	]
-
+	
 	# OpenAI API Key use
 	api_key = os.getenv("OPENAI_API_KEY")
 	analyzer = get_analyzer(api_key=api_key)
-
+	
 	for text in test_texts:
 		print(f"\nAnalyzing: \"{text}\"")
-		result = analyzer.analyze(text)
-		print(f"Result: {json.dumps(result, indent=2)}")
+		analyze_sentiment(text, verbose=True)

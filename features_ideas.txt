@@ -42,3 +42,14 @@ Assigns unique identifiers to each speaker
    - More nuanced understanding
    - Better at complex emotions
    - Works with multiple languages
+
+   2. Using LLM-based Analysis (GPT-3.5):
+   - More nuanced understanding
+   - Better at complex emotions
+   - Works with multiple languages
+
+3. A visualization for transformers, and one for LLM
+
+4. statistics of both results 
+
+5. 
