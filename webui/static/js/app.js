@@ -895,36 +895,7 @@ class HopesSorrowsApp {
                 }
             });
         }
-    }
-
-    /**
-     * Create visual birth effect for new blob
-     */
-    createBlobBirthEffect(blobData, index) {
-        // Create ripple effect at blob position
-        const ripple = document.createElement('div');
-        ripple.className = 'blob-birth-ripple';
-        
-        // Position the ripple (you might need to adjust based on your visualizer)
-        const container = document.getElementById('visualization-container');
-        if (container) {
-            ripple.style.left = `${(blobData.x || Math.random()) * 100}%`;
-            ripple.style.top = `${(blobData.y || Math.random()) * 100}%`;
-            container.appendChild(ripple);
-            
-            // Animate the ripple
-            if (typeof anime !== 'undefined') {
-                anime({
-                    targets: ripple,
-                    scale: [0, 3],
-                    opacity: [0.8, 0],
-                    duration: 1000,
-                    easing: 'easeOutCubic',
-                    complete: () => ripple.remove()
-                });
-            }
         }
-    }
 
     /**
      * Create subtle screen flash effect
@@ -941,45 +912,6 @@ class HopesSorrowsApp {
                 duration: 300,
                 easing: 'easeInOutQuad',
                 complete: () => flash.remove()
-            });
-        }
-    }
-
-    /**
-     * Create completion burst effect
-     */
-    createCompletionBurst() {
-        // Create multiple particles for burst effect
-        const container = document.getElementById('visualization-container');
-        if (!container) return;
-        
-        const particleCount = 12;
-        const particles = [];
-        
-        for (let i = 0; i < particleCount; i++) {
-            const particle = document.createElement('div');
-            particle.className = 'completion-particle';
-            particle.style.left = '50%';
-            particle.style.top = '50%';
-            container.appendChild(particle);
-            particles.push(particle);
-        }
-        
-        if (typeof anime !== 'undefined') {
-            particles.forEach((particle, i) => {
-                const angle = (360 / particleCount) * i;
-                const distance = 200;
-                
-                anime({
-                    targets: particle,
-                    translateX: Math.cos(angle * Math.PI / 180) * distance,
-                    translateY: Math.sin(angle * Math.PI / 180) * distance,
-                    scale: [0, 1, 0],
-                    opacity: [0, 1, 0],
-                    duration: 1500,
-                    easing: 'easeOutCubic',
-                    complete: () => particle.remove()
-                });
             });
         }
     }

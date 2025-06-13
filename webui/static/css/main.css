@@ -3161,17 +3161,6 @@ h1, h2, h3, h4, h5, h6 {
     100% { transform: scale(1.2) rotate(15deg); }
 }
 
-.blob-birth-ripple {
-    position: absolute;
-    width: 20px;
-    height: 20px;
-    border: 2px solid rgba(102, 204, 179, 0.8);
-    border-radius: 50%;
-    pointer-events: none;
-    z-index: 1000;
-    transform: translate(-50%, -50%);
-}
-
 .screen-flash {
     position: fixed;
     top: 0;
@@ -3181,18 +3170,6 @@ h1, h2, h3, h4, h5, h6 {
     background: rgba(102, 204, 179, 0.1);
     pointer-events: none;
     z-index: 1500;
-}
-
-.completion-particle {
-    position: absolute;
-    width: 8px;
-    height: 8px;
-    background: radial-gradient(circle, #66ccb3, #4d99cc);
-    border-radius: 50%;
-    pointer-events: none;
-    z-index: 1000;
-    transform: translate(-50%, -50%);
-    box-shadow: 0 0 10px rgba(102, 204, 179, 0.6);
 }
 
 /* Enhanced Analysis Button Styles */
