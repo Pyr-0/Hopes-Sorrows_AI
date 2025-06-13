@@ -135,30 +135,71 @@
         <!-- Voice Analysis Confirmation Panel -->
         <div id="analysis-confirmation" class="analysis-confirmation">
             <div class="analysis-confirmation-content">
-                <h3>✨ Analysis Complete!</h3>
-                <div class="analysis-summary">
-                    <!-- Success message will be inserted here by JavaScript -->
+                <div class="analysis-header">
+                    <h3>✨ Voice Analysis Complete!</h3>
+                    <p class="analysis-subtitle">Your emotional journey has been transformed into living art</p>
                 </div>
-                <div class="analysis-stats">
-                    <div class="analysis-stat">
-                        <div class="analysis-stat-number" id="analysis-utterances">0</div>
-                        <div class="analysis-stat-label">Utterances</div>
+                
+                <div class="analysis-grid">
+                    <!-- Metrics Section -->
+                    <div class="analysis-metrics">
+                        <h4>📊 Analysis Metrics</h4>
+                        <div class="metrics-grid">
+                            <div class="metric-card">
+                                <div class="metric-icon">🗣️</div>
+                                <div class="metric-content">
+                                    <div class="metric-number" id="analysis-utterances">0</div>
+                                    <div class="metric-label">Voice Segments</div>
+                                    <div class="metric-description">Individual emotional expressions detected</div>
+                                </div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-icon">🎭</div>
+                                <div class="metric-content">
+                                    <div class="metric-number" id="analysis-emotions">0</div>
+                                    <div class="metric-label">Emotion Types</div>
+                                    <div class="metric-description">Unique emotional categories identified</div>
+                                </div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-icon">🎯</div>
+                                <div class="metric-content">
+                                    <div class="metric-number" id="analysis-confidence">0%</div>
+                                    <div class="metric-label">AI Confidence</div>
+                                    <div class="metric-description">Accuracy of emotion detection</div>
+                                </div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-icon">⏱️</div>
+                                <div class="metric-content">
+                                    <div class="metric-number" id="analysis-duration">0s</div>
+                                    <div class="metric-label">Recording Time</div>
+                                    <div class="metric-description">Total duration of your voice</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="analysis-stat">
-                        <div class="analysis-stat-number" id="analysis-emotions">0</div>
-                        <div class="analysis-stat-label">Emotions</div>
-                    </div>
-                    <div class="analysis-stat">
-                        <div class="analysis-stat-number" id="analysis-confidence">0%</div>
-                        <div class="analysis-stat-label">Confidence</div>
+                    
+                    <!-- Emotions Section -->
+                    <div class="analysis-emotions-section">
+                        <h4>🌈 Detected Emotions</h4>
+                        <div class="analysis-emotions" id="analysis-emotion-list">
+                            <!-- Emotion tags will be populated here -->
+                        </div>
                     </div>
                 </div>
-                <div class="analysis-emotions" id="analysis-emotion-list">
-                    <!-- Emotion tags will be populated here -->
-                </div>
+                
+                <!-- Sentiment Overview will be inserted here by JavaScript -->
+                
                 <div class="analysis-actions">
-                    <button class="analysis-btn primary" id="analysis-continue-btn">Continue Exploring</button>
-                    <button class="analysis-btn secondary" id="analysis-view-btn">View Landscape</button>
+                    <button class="analysis-btn primary" id="analysis-continue-btn">
+                        <span class="btn-icon">🚀</span>
+                        Continue Exploring
+                    </button>
+                    <button class="analysis-btn secondary" id="analysis-view-btn">
+                        <span class="btn-icon">🗺️</span>
+                        View Landscape
+                    </button>
                 </div>
             </div>
         </div>

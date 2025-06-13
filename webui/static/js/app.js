@@ -27,6 +27,8 @@ class HopesSorrowsApp {
         
         // Status management
         this.currentStatus = 'ready';
+        this.isProcessingAnalysis = false; // Prevent duplicate analysis handling
+        this.newBlobIds = []; // Track new blob IDs for highlighting
         this.statusMessages = {
             ready: {
                 main: 'Ready to Record',
@@ -619,34 +621,367 @@ class HopesSorrowsApp {
     handleAnalysisComplete(data) {
         console.log('🎉 Handling analysis completion:', data);
         
+        // Prevent duplicate handling
+        if (this.isProcessingAnalysis) {
+            console.log('⚠️ Analysis already being processed, skipping');
+            return;
+        }
+        
+        this.isProcessingAnalysis = true;
+        
         // Hide processing panel first
         this.hideProcessingPanel();
         
-        // Add new blobs to visualizer
+        // Add new blobs to visualizer with enhanced animations
         if (data.blobs && this.emotionVisualizer) {
-            data.blobs.forEach((blobData, index) => {
-                setTimeout(() => {
-                    this.emotionVisualizer.addBlob(blobData);
-                }, index * 200); // Stagger animations
-            });
+            this.animateNewBlobEntries(data.blobs);
         }
         
         // Show analysis confirmation with detailed results
         setTimeout(() => {
             this.showAnalysisConfirmation(data);
-        }, 500); // Small delay to ensure blobs are added first
+        }, 800); // Delay to let blob animations play
         
         // Update stats
         setTimeout(() => {
             this.updateBlobStats();
-        }, data.blobs ? data.blobs.length * 200 + 500 : 500);
+        }, data.blobs ? data.blobs.length * 300 + 800 : 800);
         
         this.updateStatus('complete');
         
         // Reset to ready after a delay
         setTimeout(() => {
             this.updateStatus('ready');
+            this.isProcessingAnalysis = false; // Reset flag
         }, 3000);
+    }
+
+    /**
+     * Animate new blob entries with visual effects
+     */
+    animateNewBlobEntries(blobs) {
+        console.log('🎨 Animating new blob entries:', blobs.length);
+        
+        // Create a visual indicator for new entries
+        this.showNewBlobIndicator(blobs.length);
+        
+        // Store new blob IDs for highlighting
+        this.newBlobIds = [];
+        
+        // Add blobs with staggered timing and visual effects
+        blobs.forEach((blobData, index) => {
+            setTimeout(() => {
+                // Add the blob to the visualizer
+                this.emotionVisualizer.addBlob(blobData);
+                
+                // Store the blob ID for highlighting
+                if (blobData.id) {
+                    this.newBlobIds.push(blobData.id);
+                }
+                
+                // Highlight the new blob
+                this.highlightNewBlob(blobData, index);
+                
+                // Add a subtle screen flash for the first blob
+                if (index === 0) {
+                    this.createScreenFlash();
+                }
+                
+            }, index * 300); // Longer stagger for more dramatic effect
+        });
+        
+        // Remove highlights after 10 seconds
+        setTimeout(() => {
+            this.removeNewBlobHighlights();
+        }, 10000);
+    }
+
+    /**
+     * Highlight a newly added blob
+     */
+    highlightNewBlob(blobData, index) {
+        console.log('✨ Highlighting new blob:', blobData);
+        
+        // Create multiple highlight types for better visibility
+        this.createBlobHighlightRing(blobData, index);
+        this.createBlobSpotlight(blobData, index);
+        this.createBlobLabel(blobData, index);
+    }
+
+    /**
+     * Create a highlight ring around new blob
+     */
+    createBlobHighlightRing(blobData, index) {
+        const container = document.getElementById('visualization-container');
+        if (!container) return;
+
+        const ring = document.createElement('div');
+        ring.className = 'new-blob-highlight';
+        ring.dataset.blobId = blobData.id || `new-${index}`;
+        
+        // Use more visible positioning
+        const rect = container.getBoundingClientRect();
+        const x = 20 + (index * 15) + Math.random() * 60; // Staggered positioning
+        const y = 20 + Math.random() * 60;
+        
+        ring.style.left = `${x}%`;
+        ring.style.top = `${y}%`;
+        container.appendChild(ring);
+        
+        // Enhanced animation
+        if (typeof anime !== 'undefined') {
+            anime({
+                targets: ring,
+                scale: [0, 2, 1.2],
+                opacity: [0, 1, 0.8],
+                duration: 1200,
+                easing: 'easeOutElastic(1, .6)',
+                complete: () => {
+                    anime({
+                        targets: ring,
+                        scale: [1.2, 1.5, 1.2],
+                        opacity: [0.8, 1, 0.8],
+                        duration: 3000,
+                        loop: true,
+                        easing: 'easeInOutSine'
+                    });
+                }
+            });
+        }
+    }
+
+    /**
+     * Create spotlight effect for new blob
+     */
+    createBlobSpotlight(blobData, index) {
+        const container = document.getElementById('visualization-container');
+        if (!container) return;
+
+        const spotlight = document.createElement('div');
+        spotlight.className = 'new-blob-spotlight';
+        spotlight.dataset.blobId = blobData.id || `new-${index}`;
+        
+        const x = 25 + (index * 15) + Math.random() * 50;
+        const y = 25 + Math.random() * 50;
+        
+        spotlight.style.left = `${x}%`;
+        spotlight.style.top = `${y}%`;
+        container.appendChild(spotlight);
+        
+        if (typeof anime !== 'undefined') {
+            anime({
+                targets: spotlight,
+                scale: [0, 3, 1],
+                opacity: [0, 0.3, 0],
+                duration: 2000,
+                easing: 'easeOutQuad'
+            });
+        }
+        
+        setTimeout(() => spotlight.remove(), 2000);
+    }
+
+    /**
+     * Create label for new blob
+     */
+    createBlobLabel(blobData, index) {
+        const container = document.getElementById('visualization-container');
+        if (!container) return;
+
+        const label = document.createElement('div');
+        label.className = 'new-blob-label';
+        label.textContent = `NEW ${blobData.dominant_emotion || 'EMOTION'}`;
+        label.dataset.blobId = blobData.id || `new-${index}`;
+        
+        const x = 15 + (index * 20) + Math.random() * 50;
+        const y = 15 + Math.random() * 30;
+        
+        label.style.left = `${x}%`;
+        label.style.top = `${y}%`;
+        container.appendChild(label);
+        
+        if (typeof anime !== 'undefined') {
+            anime({
+                targets: label,
+                translateY: [-20, 0],
+                opacity: [0, 1],
+                scale: [0.8, 1],
+                duration: 800,
+                easing: 'easeOutBack',
+                complete: () => {
+                    setTimeout(() => {
+                        anime({
+                            targets: label,
+                            opacity: [1, 0],
+                            translateY: [0, -10],
+                            duration: 500,
+                            complete: () => label.remove()
+                        });
+                    }, 8000);
+                }
+            });
+        }
+    }
+
+    /**
+     * Remove highlights from new blobs
+     */
+    removeNewBlobHighlights() {
+        const highlights = document.querySelectorAll('.new-blob-highlight, .new-blob-spotlight, .new-blob-label');
+        
+        console.log('🧹 Removing', highlights.length, 'blob highlights');
+        
+        if (typeof anime !== 'undefined') {
+            anime({
+                targets: highlights,
+                opacity: [null, 0],
+                scale: [null, 0.8],
+                duration: 1000,
+                easing: 'easeInCubic',
+                complete: () => {
+                    highlights.forEach(highlight => highlight.remove());
+                }
+            });
+        } else {
+            highlights.forEach(highlight => highlight.remove());
+        }
+        
+        // Clear the stored IDs
+        this.newBlobIds = [];
+    }
+
+    /**
+     * Show indicator for new blob entries
+     */
+    showNewBlobIndicator(count) {
+        // Prevent duplicate indicators
+        const existingIndicator = document.querySelector('.new-blob-indicator');
+        if (existingIndicator) {
+            console.log('⚠️ Blob indicator already visible, skipping');
+            return;
+        }
+
+        // Create a temporary indicator
+        const indicator = document.createElement('div');
+        indicator.className = 'new-blob-indicator';
+        indicator.innerHTML = `
+            <div class="indicator-content">
+                <div class="indicator-icon">✨</div>
+                <div class="indicator-text">+${count} new emotion${count > 1 ? 's' : ''}</div>
+            </div>
+        `;
+        
+        document.body.appendChild(indicator);
+        
+        // Animate the indicator
+        if (typeof anime !== 'undefined') {
+            anime({
+                targets: indicator,
+                opacity: [0, 1],
+                scale: [0.8, 1],
+                duration: 600,
+                easing: 'easeOutElastic(1, .8)',
+                complete: () => {
+                    setTimeout(() => {
+                        anime({
+                            targets: indicator,
+                            opacity: [1, 0],
+                            scale: [1, 0.8],
+                            duration: 400,
+                            easing: 'easeInCubic',
+                            complete: () => indicator.remove()
+                        });
+                    }, 2000);
+                }
+            });
+        }
+    }
+
+    /**
+     * Create visual birth effect for new blob
+     */
+    createBlobBirthEffect(blobData, index) {
+        // Create ripple effect at blob position
+        const ripple = document.createElement('div');
+        ripple.className = 'blob-birth-ripple';
+        
+        // Position the ripple (you might need to adjust based on your visualizer)
+        const container = document.getElementById('visualization-container');
+        if (container) {
+            ripple.style.left = `${(blobData.x || Math.random()) * 100}%`;
+            ripple.style.top = `${(blobData.y || Math.random()) * 100}%`;
+            container.appendChild(ripple);
+            
+            // Animate the ripple
+            if (typeof anime !== 'undefined') {
+                anime({
+                    targets: ripple,
+                    scale: [0, 3],
+                    opacity: [0.8, 0],
+                    duration: 1000,
+                    easing: 'easeOutCubic',
+                    complete: () => ripple.remove()
+                });
+            }
+        }
+    }
+
+    /**
+     * Create subtle screen flash effect
+     */
+    createScreenFlash() {
+        const flash = document.createElement('div');
+        flash.className = 'screen-flash';
+        document.body.appendChild(flash);
+        
+        if (typeof anime !== 'undefined') {
+            anime({
+                targets: flash,
+                opacity: [0, 0.1, 0],
+                duration: 300,
+                easing: 'easeInOutQuad',
+                complete: () => flash.remove()
+            });
+        }
+    }
+
+    /**
+     * Create completion burst effect
+     */
+    createCompletionBurst() {
+        // Create multiple particles for burst effect
+        const container = document.getElementById('visualization-container');
+        if (!container) return;
+        
+        const particleCount = 12;
+        const particles = [];
+        
+        for (let i = 0; i < particleCount; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'completion-particle';
+            particle.style.left = '50%';
+            particle.style.top = '50%';
+            container.appendChild(particle);
+            particles.push(particle);
+        }
+        
+        if (typeof anime !== 'undefined') {
+            particles.forEach((particle, i) => {
+                const angle = (360 / particleCount) * i;
+                const distance = 200;
+                
+                anime({
+                    targets: particle,
+                    translateX: Math.cos(angle * Math.PI / 180) * distance,
+                    translateY: Math.sin(angle * Math.PI / 180) * distance,
+                    scale: [0, 1, 0],
+                    opacity: [0, 1, 0],
+                    duration: 1500,
+                    easing: 'easeOutCubic',
+                    complete: () => particle.remove()
+                });
+            });
+        }
     }
     
     /**
@@ -657,10 +992,88 @@ class HopesSorrowsApp {
         
         if (isRecording) {
             this.elements.recordBtn.classList.add('recording');
+            this.elements.recordBtn.innerHTML = `
+                <div class="record-stop-icon">
+                    <div class="stop-square"></div>
+                </div>
+            `;
             this.updateStatus('recording');
+            this.startRecordingVisualEffects();
         } else {
             this.elements.recordBtn.classList.remove('recording');
+            this.elements.recordBtn.innerHTML = `
+                <div class="record-icon">
+                    <div class="record-dot"></div>
+                </div>
+            `;
+            this.stopRecordingVisualEffects();
         }
+    }
+
+    /**
+     * Start visual effects during recording
+     */
+    startRecordingVisualEffects() {
+        // Add wave animation to the background
+        this.createRecordingWaves();
+        
+        // Add pulse effect to record button
+        this.startRecordButtonPulse();
+    }
+
+    /**
+     * Stop visual effects when recording ends
+     */
+    stopRecordingVisualEffects() {
+        // Remove wave animation
+        this.removeRecordingWaves();
+        
+        // Stop pulse effect
+        this.stopRecordButtonPulse();
+    }
+
+    /**
+     * Create animated waves during recording
+     */
+    createRecordingWaves() {
+        const container = document.getElementById('visualization-container');
+        if (!container) return;
+
+        // Create multiple wave elements
+        for (let i = 0; i < 3; i++) {
+            const wave = document.createElement('div');
+            wave.className = 'recording-wave';
+            wave.style.animationDelay = `${i * 0.5}s`;
+            container.appendChild(wave);
+        }
+    }
+
+    /**
+     * Remove recording waves
+     */
+    removeRecordingWaves() {
+        const waves = document.querySelectorAll('.recording-wave');
+        waves.forEach(wave => wave.remove());
+    }
+
+    /**
+     * Start record button pulse animation
+     */
+    startRecordButtonPulse() {
+        if (!this.elements.recordBtn) return;
+        
+        console.log('🟦 Adding pulse animation to record button');
+        this.elements.recordBtn.classList.add('pulsing');
+    }
+
+    /**
+     * Stop record button pulse animation
+     */
+    stopRecordButtonPulse() {
+        if (!this.elements.recordBtn) return;
+        
+        console.log('🟦 Removing pulse animation from record button');
+        this.elements.recordBtn.classList.remove('pulsing');
     }
     
     /**
@@ -779,25 +1192,23 @@ class HopesSorrowsApp {
      * Show/hide analysis confirmation
      */
     showAnalysisConfirmation(data) {
-        if (this.elements.analysisConfirmation) {
-            // Update confirmation content if needed
-            this.elements.analysisConfirmation.classList.add('visible');
-            
-            // Animate emotion tags
-            const emotionTags = emotionList.querySelectorAll('.analysis-emotion');
-            if (typeof anime !== 'undefined') {
-                anime({
-                    targets: emotionTags,
-                    opacity: [0, 1],
-                    translateY: [20, 0],
-                    delay: anime.stagger(100, {start: 500}),
-                    duration: 600,
-                    easing: 'easeOutCubic'
-                });
-            }
+        if (!this.elements.analysisConfirmation) {
+            console.error('❌ Analysis confirmation element not found');
+            return;
         }
-        
-        // Show the panel with animation
+
+        // Prevent duplicate panels
+        if (this.elements.analysisConfirmation.classList.contains('visible')) {
+            console.log('⚠️ Analysis confirmation already visible, skipping');
+            return;
+        }
+
+        console.log('📊 Showing analysis confirmation with data:', data);
+
+        // Populate analysis data
+        this.populateAnalysisData(data);
+
+        // Show the panel
         this.elements.analysisConfirmation.classList.add('visible');
         
         // Re-attach button event listeners after panel is shown
@@ -867,6 +1278,169 @@ class HopesSorrowsApp {
     }
     
     /**
+     * Populate analysis confirmation with actual data
+     */
+    populateAnalysisData(data) {
+        console.log('📊 Populating analysis data:', data);
+
+        // Extract analysis data
+        const blobs = data.blobs || [];
+        const summary = data.processing_summary || {};
+        
+        // Calculate statistics
+        const totalUtterances = blobs.length;
+        const uniqueEmotions = [...new Set(blobs.map(b => b.category))].length;
+        const avgConfidence = blobs.length > 0 ? 
+            Math.round(blobs.reduce((sum, b) => sum + (b.confidence || 0), 0) / blobs.length * 100) : 0;
+        
+        // Calculate recording duration (estimate based on processing time or use actual if available)
+        const recordingDuration = summary.recording_duration || 
+            Math.round((Date.now() - this.recordingStartTime) / 1000) || 
+            Math.min(44, Math.max(5, totalUtterances * 3)); // Fallback estimate
+
+        // Update statistics with staggered animations
+        const utterancesEl = document.getElementById('analysis-utterances');
+        const emotionsEl = document.getElementById('analysis-emotions');
+        const confidenceEl = document.getElementById('analysis-confidence');
+        const durationEl = document.getElementById('analysis-duration');
+
+        setTimeout(() => {
+            if (utterancesEl) this.animateCounter(utterancesEl, 0, totalUtterances, 800);
+        }, 200);
+        
+        setTimeout(() => {
+            if (emotionsEl) this.animateCounter(emotionsEl, 0, uniqueEmotions, 800);
+        }, 400);
+        
+        setTimeout(() => {
+            if (confidenceEl) this.animateCounter(confidenceEl, 0, avgConfidence, 800, '%');
+        }, 600);
+        
+        setTimeout(() => {
+            if (durationEl) this.animateCounter(durationEl, 0, recordingDuration, 800, 's');
+        }, 800);
+
+        // Populate emotion list with staggered animations
+        const emotionListEl = document.getElementById('analysis-emotion-list');
+        if (emotionListEl && blobs.length > 0) {
+            const emotionCounts = {};
+            blobs.forEach(blob => {
+                const category = blob.category || 'unknown';
+                emotionCounts[category] = (emotionCounts[category] || 0) + 1;
+            });
+
+            emotionListEl.innerHTML = Object.entries(emotionCounts)
+                .map(([emotion, count]) => `
+                    <div class="analysis-emotion ${emotion}" style="opacity: 0; transform: translateY(10px);">
+                        <div class="analysis-emotion-dot"></div>
+                        <span>${emotion.charAt(0).toUpperCase() + emotion.slice(1)} (${count})</span>
+                    </div>
+                `).join('');
+
+            // Animate emotion tags
+            const emotionTags = emotionListEl.querySelectorAll('.analysis-emotion');
+            if (typeof anime !== 'undefined') {
+                anime({
+                    targets: emotionTags,
+                    opacity: [0, 1],
+                    translateY: [10, 0],
+                    delay: anime.stagger(100, {start: 1000}),
+                    duration: 600,
+                    easing: 'easeOutCubic'
+                });
+            }
+        }
+
+        // Add sentiment analysis overview if available
+        this.addSentimentOverview(blobs, summary);
+
+        console.log('✅ Analysis data populated');
+    }
+
+    /**
+     * Add sentiment analysis overview to the confirmation panel
+     */
+    addSentimentOverview(blobs, summary) {
+        // Find or create sentiment overview section
+        let sentimentSection = document.querySelector('.sentiment-overview');
+        if (!sentimentSection) {
+            const analysisContent = document.querySelector('.analysis-confirmation-content');
+            if (analysisContent) {
+                sentimentSection = document.createElement('div');
+                sentimentSection.className = 'sentiment-overview';
+                
+                // Insert before actions
+                const actionsEl = analysisContent.querySelector('.analysis-actions');
+                if (actionsEl) {
+                    analysisContent.insertBefore(sentimentSection, actionsEl);
+                } else {
+                    analysisContent.appendChild(sentimentSection);
+                }
+            }
+        }
+
+        if (sentimentSection && blobs.length > 0) {
+            // Calculate overall sentiment
+            const avgScore = blobs.reduce((sum, b) => sum + (b.score || 0), 0) / blobs.length;
+            const avgConfidence = blobs.reduce((sum, b) => sum + (b.confidence || 0), 0) / blobs.length;
+            
+            // Get sentiment label
+            let sentimentLabel = 'Neutral';
+            if (avgScore > 0.3) sentimentLabel = 'Positive';
+            else if (avgScore > 0.8) sentimentLabel = 'Very Positive';
+            else if (avgScore < -0.3) sentimentLabel = 'Negative';
+            else if (avgScore < -0.8) sentimentLabel = 'Very Negative';
+
+            // Create sentiment explanation
+            const explanation = this.generateSentimentExplanation(avgScore, sentimentLabel, blobs);
+
+            sentimentSection.innerHTML = `
+                <h4>🧠 Sentiment Analysis Overview</h4>
+                <div class="sentiment-summary">
+                    <div class="sentiment-score">
+                        <span class="sentiment-label">${sentimentLabel}</span>
+                        <span class="sentiment-value">${(avgScore * 100).toFixed(1)}%</span>
+                        <span class="sentiment-confidence">Confidence: ${(avgConfidence * 100).toFixed(0)}%</span>
+                    </div>
+                    <div class="sentiment-explanation">
+                        ${explanation}
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * Generate sentiment explanation based on analysis
+     */
+    generateSentimentExplanation(avgScore, label, blobs) {
+        const emotionCounts = {};
+        blobs.forEach(blob => {
+            const category = blob.category || 'unknown';
+            emotionCounts[category] = (emotionCounts[category] || 0) + 1;
+        });
+
+        const dominantEmotion = Object.entries(emotionCounts)
+            .sort(([,a], [,b]) => b - a)[0];
+
+        let explanation = `Your voice analysis reveals a ${label.toLowerCase()} emotional tone. `;
+        
+        if (dominantEmotion) {
+            explanation += `The dominant emotion detected is ${dominantEmotion[0]}, appearing in ${dominantEmotion[1]} of ${blobs.length} segments. `;
+        }
+
+        if (avgScore > 0.5) {
+            explanation += "This suggests optimism, hope, and positive emotional energy in your expression.";
+        } else if (avgScore < -0.5) {
+            explanation += "This indicates deeper emotional processing, possibly involving challenges or sorrows that are being worked through.";
+        } else {
+            explanation += "This shows a balanced emotional state with mixed feelings being processed thoughtfully.";
+        }
+
+        return explanation;
+    }
+
+    /**
      * Animate counter with Anime.js
      */
     animateCounter(element, from, to, duration = 1000, suffix = '') {
@@ -932,7 +1506,17 @@ class HopesSorrowsApp {
     /**
      * Update blob statistics
      */
-    updateBlobStats(blobs) {
+    updateBlobStats(blobs = null) {
+        // If no blobs provided, get them from visualizer
+        if (!blobs && this.emotionVisualizer && this.emotionVisualizer.getBlobs) {
+            blobs = this.emotionVisualizer.getBlobs();
+        }
+        
+        if (!blobs || !Array.isArray(blobs)) {
+            console.warn('⚠️ No valid blobs data for stats update');
+            return;
+        }
+        
         // Update total count
         if (this.elements.blobCount) {
             this.elements.blobCount.textContent = blobs.length;
