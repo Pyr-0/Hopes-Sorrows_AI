@@ -141,8 +141,8 @@
         </div>
 
         <div class="test-section">
-            <h3>🎮 WebGL Support</h3>
-            <div id="webgl-results"></div>
+                            <h3>🎨 Canvas Support</h3>
+                <div id="canvas-results"></div>
         </div>
 
         <div class="test-section">
@@ -251,10 +251,10 @@
                 { name: 'ES6 Classes', test: () => typeof class {} === 'function' },
                 { name: 'Promises', test: () => typeof Promise !== 'undefined' },
                 { name: 'Fetch API', test: () => typeof fetch !== 'undefined' },
-                { name: 'WebGL', test: () => {
+                { name: 'Canvas 2D', test: () => {
                     try {
                         const canvas = document.createElement('canvas');
-                        return !!(canvas.getContext('webgl') || canvas.getContext('experimental-webgl'));
+                        return !!canvas.getContext('2d');
                     } catch (e) { return false; }
                 }},
                 { name: 'Web Audio API', test: () => typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined' },
@@ -288,68 +288,60 @@
             });
         }
 
-        function testWebGL() {
-            const container = 'webgl-results';
+        function testCanvas() {
+            const container = 'canvas-results';
             
             try {
                 const canvas = document.createElement('canvas');
-                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                const ctx = canvas.getContext('2d');
                 
-                if (!gl) {
-                    addResult(container, 'WebGL not supported', 'error', 'Your browser does not support WebGL');
+                if (!ctx) {
+                    addResult(container, 'Canvas 2D not supported', 'error', 'Your browser does not support Canvas 2D');
                     updateProgress();
                     return;
                 }
 
-                addResult(container, 'WebGL context created', 'success');
+                addResult(container, 'Canvas 2D context created', 'success');
                 updateProgress();
 
-                // Test WebGL features
-                const extensions = gl.getSupportedExtensions();
-                addResult(container, `WebGL extensions: ${extensions.length} available`, 'info');
-                updateProgress();
-
-                // Test shader compilation
-                const vertexShader = gl.createShader(gl.VERTEX_SHADER);
-                const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-
-                const vertexSource = `
-                    attribute vec2 a_position;
-                    void main() {
-                        gl_Position = vec4(a_position, 0.0, 1.0);
-                    }
-                `;
-
-                const fragmentSource = `
-                    precision mediump float;
-                    uniform float u_time;
-                    void main() {
-                        gl_FragColor = vec4(sin(u_time), cos(u_time), 0.5, 1.0);
-                    }
-                `;
-
-                gl.shaderSource(vertexShader, vertexSource);
-                gl.compileShader(vertexShader);
-
-                if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
-                    addResult(container, 'Vertex shader compilation failed', 'error', gl.getShaderInfoLog(vertexShader));
-                } else {
-                    addResult(container, 'Vertex shader compiled successfully', 'success');
+                // Test basic drawing operations
+                canvas.width = 100;
+                canvas.height = 100;
+                
+                // Test gradient support
+                try {
+                    const gradient = ctx.createLinearGradient(0, 0, 100, 100);
+                    gradient.addColorStop(0, 'red');
+                    gradient.addColorStop(1, 'blue');
+                    addResult(container, 'Gradient support available', 'success');
+                } catch (e) {
+                    addResult(container, 'Gradient support failed', 'warning', e.message);
                 }
                 updateProgress();
 
-                gl.shaderSource(fragmentShader, fragmentSource);
-                gl.compileShader(fragmentShader);
+                // Test path operations
+                try {
+                    ctx.beginPath();
+                    ctx.arc(50, 50, 25, 0, Math.PI * 2);
+                    ctx.fill();
+                    addResult(container, 'Path operations working', 'success');
+                } catch (e) {
+                    addResult(container, 'Path operations failed', 'warning', e.message);
+                }
+                updateProgress();
 
-                if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
-                    addResult(container, 'Fragment shader compilation failed', 'error', gl.getShaderInfoLog(fragmentShader));
-                } else {
-                    addResult(container, 'Fragment shader compiled successfully', 'success');
+                // Test text rendering
+                try {
+                    ctx.font = '16px Arial';
+                    ctx.fillText('Test', 10, 30);
+                    addResult(container, 'Text rendering working', 'success');
+                } catch (e) {
+                    addResult(container, 'Text rendering failed', 'warning', e.message);
                 }
                 updateProgress();
 
             } catch (error) {
-                addResult(container, 'WebGL test failed', 'error', error.message);
+                addResult(container, 'Canvas test failed', 'error', error.message);
                 updateProgress();
             }
         }
@@ -393,20 +385,33 @@
                 const visualizer = new EmotionVisualizer();
                 addResult(container, 'EmotionVisualizer instance created', 'success');
 
-                // Test WebGL canvas
-                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-                if (gl) {
-                    // Simple WebGL test animation
-                    gl.clearColor(0.1, 0.1, 0.1, 1.0);
-                    gl.clear(gl.COLOR_BUFFER_BIT);
+                // Test Canvas 2D
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    // Simple Canvas 2D test animation
+                    canvas.width = 200;
+                    canvas.height = 100;
                     
                     let time = 0;
                     function animate() {
-                        time += 0.01;
+                        time += 0.05;
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        
+                        // Animated gradient background
+                        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
                         const r = Math.sin(time) * 0.5 + 0.5;
                         const g = Math.cos(time) * 0.5 + 0.5;
-                        gl.clearColor(r * 0.2, g * 0.2, 0.3, 1.0);
-                        gl.clear(gl.COLOR_BUFFER_BIT);
+                        gradient.addColorStop(0, `rgba(${r * 100}, ${g * 100}, 150, 0.8)`);
+                        gradient.addColorStop(1, `rgba(100, ${r * 100}, ${g * 100}, 0.8)`);
+                        
+                        ctx.fillStyle = gradient;
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        
+                        // Animated circle
+                        ctx.beginPath();
+                        ctx.arc(100 + Math.sin(time) * 30, 50, 20, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgba(255, 255, 255, 0.8)`;
+                        ctx.fill();
                         
                         if (time < 3) { // Run for 3 seconds
                             requestAnimationFrame(animate);
@@ -414,9 +419,9 @@
                     }
                     animate();
                     
-                    addResult(container, 'WebGL test animation started', 'success');
+                    addResult(container, 'Canvas 2D test animation started', 'success');
                 } else {
-                    addResult(container, 'WebGL not available for visualization', 'warning');
+                    addResult(container, 'Canvas 2D not available for visualization', 'warning');
                 }
 
             } catch (error) {
@@ -435,11 +440,11 @@
                     action: 'Try opening the main application and check if it loads properly.'
                 });
             } else {
-                if (typeof WebGL === 'undefined' || !document.createElement('canvas').getContext('webgl')) {
+                if (!document.createElement('canvas').getContext('2d')) {
                     recommendations.push({
                         type: 'error',
-                        message: '🚫 WebGL is not supported or disabled.',
-                        action: 'Enable WebGL in your browser settings or try a different browser (Chrome, Firefox, Safari).'
+                        message: '🚫 Canvas 2D is not supported.',
+                        action: 'Try updating your browser or use a modern browser (Chrome, Firefox, Safari, Edge).'
                     });
                 }
 
@@ -479,7 +484,7 @@
             totalTests = 20; // Approximate number of tests
 
             // Clear previous results
-            ['browser-results', 'library-results', 'webgl-results', 'server-results', 'visualization-results', 'recommendations'].forEach(id => {
+            ['browser-results', 'library-results', 'canvas-results', 'server-results', 'visualization-results', 'recommendations'].forEach(id => {
                 document.getElementById(id).innerHTML = '';
             });
 
@@ -488,7 +493,7 @@
             // Run tests
             testBrowserCompatibility();
             testLibraries();
-            testWebGL();
+            testCanvas();
             await testServerConnection();
             testVisualization();
 
