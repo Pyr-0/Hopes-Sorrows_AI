@@ -152,6 +152,7 @@ AI/Final_Project/
 
 For detailed technical documentation, development reports, and internal guides, see the [`docs/`](docs/) directory:
 
+- **[Technical Glossary](docs/GLOSSARY.md)** - Comprehensive guide to all terminology and concepts
 - **[Development Reports](docs/development/)** - Technical implementation details and bug fixes
 - **[Internal Guides](docs/internal/)** - Edge case handling and troubleshooting
 - **[Documentation Index](docs/README.md)** - Complete documentation overview
