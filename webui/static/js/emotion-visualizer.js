@@ -3,7 +3,7 @@
  * Clean canvas 2D implementation with aquamarine theme
  */
 
-class IntegratedEmotionVisualizer {
+class EmotionVisualizer {
     constructor() {
         // Core properties
         this.canvas = null;
