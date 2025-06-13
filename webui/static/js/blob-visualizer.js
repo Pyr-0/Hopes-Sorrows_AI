@@ -92,7 +92,7 @@ class BlobEmotionVisualizer {
                 width: 100%;
                 height: 100%;
                 pointer-events: auto;
-                background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+                background: transparent;
             `;
             this.container.appendChild(p5Container);
         }
@@ -104,14 +104,20 @@ class BlobEmotionVisualizer {
                 const canvas = p.createCanvas(window.innerWidth, window.innerHeight);
                 canvas.parent('p5-blob-container');
                 canvas.style('pointer-events', 'auto');
+                canvas.style('background', 'transparent');
+                canvas.style('position', 'absolute');
+                canvas.style('top', '0');
+                canvas.style('left', '0');
+                canvas.style('z-index', '2');
                 
                 p.colorMode(p.RGB, 255);
                 console.log('✅ P5.js blob canvas setup complete');
+                console.log('🎯 Canvas size:', window.innerWidth, 'x', window.innerHeight);
             };
             
             p.draw = () => {
-                // Dark gradient background
-                self.drawBackground();
+                // Clear canvas with transparent background
+                p.clear();
                 
                 // Update and draw all elements
                 self.updateBlobPhysics();
@@ -123,8 +129,21 @@ class BlobEmotionVisualizer {
             };
             
             p.mousePressed = () => {
-                if (!self.isClickOnUIElement(p.mouseX, p.mouseY)) {
+                // Get the actual screen coordinates
+                const rect = p.canvas.getBoundingClientRect();
+                const screenX = p.mouseX + rect.left;
+                const screenY = p.mouseY + rect.top;
+                
+                console.log('🎯 Mouse pressed at canvas coords:', p.mouseX, p.mouseY);
+                console.log('🎯 Screen coords:', screenX, screenY);
+                console.log('🎯 Canvas rect:', rect);
+                console.log('🎯 Available blobs:', self.blobs.length);
+                
+                // Use canvas coordinates directly for blob detection
+                if (!self.isClickOnUIElement(screenX, screenY)) {
                     self.handleInteraction(p.mouseX, p.mouseY);
+                } else {
+                    console.log('🚫 Click blocked by UI element');
                 }
             };
             
@@ -258,8 +277,15 @@ class BlobEmotionVisualizer {
         
         const p = this.p5Instance;
         
-        this.blobs.forEach(blob => {
-            if (blob.opacity <= 0.01) return; // Skip invisible blobs
+        if (this.blobs.length > 0) {
+            console.log('🎨 Drawing', this.blobs.length, 'blobs');
+        }
+        
+        this.blobs.forEach((blob, index) => {
+            if (blob.opacity <= 0.01) {
+                console.log(`🎨 Skipping blob ${index} (opacity: ${blob.opacity})`);
+                return; // Skip invisible blobs
+            }
             
             const color = this.sentimentColors[blob.category] || [1, 1, 1];
             
@@ -337,7 +363,16 @@ class BlobEmotionVisualizer {
      * Handle mouse interaction with blobs
      */
     handleInteraction(x, y) {
+        console.log('🎯 Handle interaction called at:', x, y);
+        
+        // Check if any UI elements are currently visible that should block interaction
+        if (this.shouldBlockInteraction()) {
+            console.log('🚫 Interaction blocked by UI state');
+            return;
+        }
+        
         const clickedBlob = this.getBlobAt(x, y);
+        console.log('🎯 Clicked blob:', clickedBlob);
         
         if (clickedBlob) {
             // Toggle blob selection
@@ -356,17 +391,45 @@ class BlobEmotionVisualizer {
             // Clear selection if clicking empty space
             this.selectedBlobs.clear();
             this.hideTooltip();
+            console.log('🎯 No blob clicked, clearing selection');
         }
+    }
+    
+    /**
+     * Check if blob interactions should be blocked due to UI state
+     */
+    shouldBlockInteraction() {
+        // Check for visible UI panels that should block blob interaction
+        const blockers = [
+            '.instructions-panel:not(.hidden)',
+            '.analysis-confirmation.visible',
+            '.loading-overlay:not(.hidden)',
+            '.error-panel.visible',
+            '.error-panel.active'
+        ];
+        
+        const isBlocked = blockers.some(selector => {
+            const element = document.querySelector(selector);
+            const isVisible = element && element.offsetParent !== null;
+            if (isVisible) {
+                console.log('🚫 Interaction blocked by:', selector);
+            }
+            return isVisible;
+        });
+        
+        return isBlocked;
     }
     
     /**
      * Show detailed tooltip for a blob
      */
     showBlobDetails(blob, x, y) {
+        console.log('🎯 Showing blob details for:', blob);
+        
         // Remove existing tooltip
         this.hideTooltip();
         
-        // Create new tooltip with enhanced analysis information
+        // Create new tooltip with simplified HTML to avoid syntax errors
         const tooltip = document.createElement('div');
         tooltip.className = 'blob-tooltip';
         tooltip.style.cssText = `
@@ -375,7 +438,7 @@ class BlobEmotionVisualizer {
             background: rgba(0, 0, 0, 0.95);
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 12px;
-            padding: 0;
+            padding: 20px;
             max-width: 320px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
             backdrop-filter: blur(10px);
@@ -383,124 +446,42 @@ class BlobEmotionVisualizer {
             opacity: 0;
             transform: scale(0.8) translateY(10px);
             transition: all 0.3s ease;
+            color: white;
         `;
         
         const color = this.sentimentColors[blob.category] || [1, 1, 1];
         const categoryColor = `rgb(${color[0] * 255}, ${color[1] * 255}, ${color[2] * 255})`;
         
+        // Create simplified tooltip content
         tooltip.innerHTML = `
-            <div class="tooltip-header" style="
-                padding: 15px;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            ">
-                <div class="tooltip-category" style="
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    color: ${categoryColor};
-                    font-weight: 600;
-                    font-size: 14px;
-                ">
-                    <div class="category-dot" style="
-                        width: 12px;
-                        height: 12px;
-                        border-radius: 50%;
-                        background: ${categoryColor};
-                        box-shadow: 0 0 10px ${categoryColor}40;
-                    "></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                <div style="display: flex; align-items: center; gap: 8px; color: ${categoryColor}; font-weight: 600; font-size: 14px;">
+                    <div style="width: 12px; height: 12px; border-radius: 50%; background: ${categoryColor}; box-shadow: 0 0 10px ${categoryColor}40;"></div>
                     <span>${blob.category.replace('_', ' ').toUpperCase()}</span>
                 </div>
-                <button class="close-btn" onclick="this.parentElement.parentElement.remove()" style="
-                    background: none;
-                    border: none;
-                    color: rgba(255, 255, 255, 0.6);
-                    font-size: 18px;
-                    cursor: pointer;
-                    padding: 0;
-                    width: 24px;
-                    height: 24px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                ">×</button>
+                <button onclick="this.parentElement.parentElement.remove()" style="background: none; border: none; color: rgba(255, 255, 255, 0.6); font-size: 18px; cursor: pointer; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">×</button>
             </div>
-            <div class="tooltip-content" style="padding: 15px;">
-                <div class="tooltip-text" style="
-                    color: white;
-                    font-size: 14px;
-                    line-height: 1.5;
-                    margin-bottom: 15px;
-                    font-style: italic;
-                ">"${blob.text}"</div>
-                <div class="tooltip-stats" style="
-                    display: grid;
-                    grid-template-columns: 1fr 1fr 1fr;
-                    gap: 10px;
-                    margin-bottom: 15px;
-                ">
-                    <div class="stat" style="text-align: center;">
-                        <div class="stat-label" style="
-                            color: rgba(255, 255, 255, 0.6);
-                            font-size: 11px;
-                            margin-bottom: 4px;
-                        ">Confidence</div>
-                        <div class="stat-value" style="
-                            color: ${categoryColor};
-                            font-weight: 600;
-                            font-size: 14px;
-                        ">${(blob.confidence * 100).toFixed(1)}%</div>
-                    </div>
-                    <div class="stat" style="text-align: center;">
-                        <div class="stat-label" style="
-                            color: rgba(255, 255, 255, 0.6);
-                            font-size: 11px;
-                            margin-bottom: 4px;
-                        ">Intensity</div>
-                        <div class="stat-value" style="
-                            color: ${categoryColor};
-                            font-weight: 600;
-                            font-size: 14px;
-                        ">${(blob.intensity * 100).toFixed(1)}%</div>
-                    </div>
-                    <div class="stat" style="text-align: center;">
-                        <div class="stat-label" style="
-                            color: rgba(255, 255, 255, 0.6);
-                            font-size: 11px;
-                            margin-bottom: 4px;
-                        ">Score</div>
-                        <div class="stat-value" style="
-                            color: ${categoryColor};
-                            font-weight: 600;
-                            font-size: 14px;
-                        ">${blob.score.toFixed(3)}</div>
-                    </div>
+            <div style="color: white; font-size: 14px; line-height: 1.5; margin-bottom: 15px; font-style: italic;">"${blob.text}"</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                <div style="text-align: center;">
+                    <div style="color: rgba(255, 255, 255, 0.6); font-size: 11px; margin-bottom: 4px;">Confidence</div>
+                    <div style="color: ${categoryColor}; font-weight: 600; font-size: 14px;">${(blob.confidence * 100).toFixed(1)}%</div>
                 </div>
-                ${blob.explanation ? `<div class="tooltip-explanation" style="
-                    color: rgba(255, 255, 255, 0.8);
-                    font-size: 12px;
-                    line-height: 1.4;
-                    margin-bottom: 15px;
-                    padding: 10px;
-                    background: rgba(255, 255, 255, 0.05);
-                    border-radius: 6px;
-                ">${blob.explanation}</div>` : ''}
-                <div class="tooltip-meta" style="
-                    display: flex;
-                    justify-content: space-between;
-                    font-size: 11px;
-                    color: rgba(255, 255, 255, 0.5);
-                ">
-                    <div class="meta-item">
-                        <span class="meta-label">Speaker:</span>
-                        <span class="meta-value">${blob.speaker_name || 'Anonymous'}</span>
-                    </div>
-                    <div class="meta-item">
-                        <span class="meta-label">Time:</span>
-                        <span class="meta-value">${blob.created_at ? new Date(blob.created_at).toLocaleTimeString() : 'Unknown'}</span>
-                    </div>
+                <div style="text-align: center;">
+                    <div style="color: rgba(255, 255, 255, 0.6); font-size: 11px; margin-bottom: 4px;">Intensity</div>
+                    <div style="color: ${categoryColor}; font-weight: 600; font-size: 14px;">${(blob.intensity * 100).toFixed(1)}%</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="color: rgba(255, 255, 255, 0.6); font-size: 11px; margin-bottom: 4px;">Score</div>
+                    <div style="color: ${categoryColor}; font-weight: 600; font-size: 14px;">${blob.score.toFixed(3)}</div>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: rgba(255, 255, 255, 0.5);">
+                <div>
+                    <span>Speaker: ${blob.speaker_name || 'Anonymous'}</span>
+                </div>
+                <div>
+                    <span>Time: ${blob.created_at ? new Date(blob.created_at).toLocaleTimeString() : 'Unknown'}</span>
                 </div>
             </div>
         `;
@@ -512,10 +493,13 @@ class BlobEmotionVisualizer {
         document.body.appendChild(tooltip);
         this.currentTooltip = tooltip;
         
+        console.log('🎯 Tooltip created and added to DOM');
+        
         // Animate tooltip entrance
         setTimeout(() => {
             tooltip.style.opacity = '1';
             tooltip.style.transform = 'scale(1) translateY(0)';
+            console.log('🎯 Tooltip animated in');
         }, 50);
         
         // Auto-hide after delay
@@ -618,68 +602,60 @@ class BlobEmotionVisualizer {
      * Draw UI elements
      */
     drawUI() {
+        // UI elements are now handled by separate panels - keep this clean
+        // No overlay text on the canvas to maintain the immersive experience
+        
+        // Ensure no background elements are drawn that could cause white bars
         if (!this.p5Instance) return;
         
+        // Make sure the canvas background is transparent
         const p = this.p5Instance;
-        
-        // Draw blob count
-        p.fill(255, 255, 255, 200);
-        p.textAlign(p.LEFT, p.TOP);
-        p.textSize(16);
-        p.text(`Floating Blobs: ${this.blobs.length}`, 20, 20);
-        
-        // Draw visible categories
-        let y = 50;
-        p.textSize(14);
-        p.text('Visible Emotions:', 20, y);
-        y += 20;
-        
-        const categories = ['hope', 'sorrow', 'transformative', 'ambivalent', 'reflective_neutral'];
-        categories.forEach((category, index) => {
-            const isVisible = this.visibleCategories.has(category);
-            const color = this.sentimentColors[category];
-            
-            p.fill(color[0] * 255, color[1] * 255, color[2] * 255, isVisible ? 255 : 100);
-            p.circle(30, y + 8, 12);
-            
-            p.fill(255, 255, 255, isVisible ? 255 : 100);
-            p.text(`${index + 1}. ${category}`, 50, y);
-            y += 18;
-        });
-        
-        // Draw instructions
-        p.textSize(12);
-        p.fill(255, 255, 255, 150);
-        p.text('Click blobs to see details • 1-5 keys to toggle emotions', 20, p.height - 30);
+        if (p.canvas && p.canvas.style) {
+            p.canvas.style.background = 'transparent';
+        }
     }
     
     /**
      * Check if click is on UI element
      */
     isClickOnUIElement(x, y) {
+        console.log('🎯 Checking if click is on UI element at:', x, y);
+        
         const elementsAtPoint = document.elementsFromPoint(x, y);
+        console.log('🎯 Elements at point:', elementsAtPoint.map(el => el.tagName + (el.className ? '.' + el.className : '')));
         
         for (let element of elementsAtPoint) {
-            if (element.classList.contains('blob-info-panel') ||
-                element.classList.contains('blob-info-toggle') ||
-                element.classList.contains('recording-interface') ||
+            // Check for direct UI element classes that should block blob interaction
+            if (element.classList.contains('recording-interface') ||
                 element.classList.contains('recording-panel') ||
                 element.classList.contains('nav-bar') ||
-                element.classList.contains('instructions-panel') ||
+                element.classList.contains('blob-info-panel') ||
                 element.classList.contains('analysis-confirmation') ||
-                element.classList.contains('blob-tooltip') ||
+                element.classList.contains('instructions-panel') ||
+                element.classList.contains('loading-overlay') ||
+                element.classList.contains('error-panel') ||
                 element.tagName === 'BUTTON' ||
                 element.tagName === 'INPUT' ||
-                element.closest('.blob-info-panel') ||
-                element.closest('.recording-interface') ||
+                element.tagName === 'SELECT' ||
+                element.tagName === 'TEXTAREA') {
+                console.log('🚫 Click blocked by element:', element.tagName, element.className);
+                return true;
+            }
+            
+            // Check for parent containers that should block blob interaction
+            if (element.closest('.recording-interface') ||
                 element.closest('.nav-bar') ||
-                element.closest('.instructions-panel') ||
+                element.closest('.blob-info-panel') ||
                 element.closest('.analysis-confirmation') ||
-                element.closest('.blob-tooltip')) {
+                element.closest('.instructions-panel') ||
+                element.closest('.loading-overlay') ||
+                element.closest('.error-panel')) {
+                console.log('🚫 Click blocked by parent container:', element.closest('.recording-interface, .nav-bar, .blob-info-panel, .analysis-confirmation, .instructions-panel, .loading-overlay, .error-panel'));
                 return true;
             }
         }
         
+        console.log('✅ Click not blocked by UI elements');
         return false;
     }
     
@@ -687,6 +663,8 @@ class BlobEmotionVisualizer {
      * Add a new blob to the visualization
      */
     addBlob(blobData) {
+        console.log('🫧 Adding blob with data:', blobData);
+        
         // Ensure we have all required properties
         const blob = {
             id: blobData.id || `blob_${this.blobIdCounter++}`,
@@ -721,6 +699,8 @@ class BlobEmotionVisualizer {
         this.blobs.push(blob);
         
         console.log('🫧 Added blob:', blob);
+        console.log('🫧 Total blobs now:', this.blobs.length);
+        console.log('🫧 Blob position:', blob.x, blob.y, 'size:', blob.size);
         return blob;
     }
     
@@ -738,6 +718,9 @@ class BlobEmotionVisualizer {
      * Find blob at coordinates
      */
     getBlobAt(x, y) {
+        console.log('🎯 Looking for blob at:', x, y);
+        console.log('🎯 Total blobs to check:', this.blobs.length);
+        
         // Find blob at coordinates (reverse order to get topmost)
         for (let i = this.blobs.length - 1; i >= 0; i--) {
             const blob = this.blobs[i];
@@ -745,11 +728,22 @@ class BlobEmotionVisualizer {
                 const distance = Math.sqrt(
                     Math.pow(x - blob.x, 2) + Math.pow(y - blob.y, 2)
                 );
-                if (distance <= blob.size) {
+                
+                // Use the larger glow radius for hit detection (size * 2)
+                const hitRadius = blob.size * 2;
+                
+                console.log(`🎯 Blob ${i}: pos(${blob.x.toFixed(1)}, ${blob.y.toFixed(1)}) size:${blob.size} distance:${distance.toFixed(1)} hitRadius:${hitRadius}`);
+                
+                if (distance <= hitRadius) {
+                    console.log('🎯 HIT! Found blob:', blob);
                     return blob;
                 }
+            } else {
+                console.log(`🎯 Blob ${i}: skipped (opacity: ${blob.opacity})`);
             }
         }
+        
+        console.log('🎯 No blob found at coordinates');
         return null;
     }
     
@@ -811,7 +805,40 @@ class BlobEmotionVisualizer {
         } else {
             this.visibleCategories.delete(category);
         }
+        
+        // Update UI elements
+        this.updateCategoryUIState(category, visible);
+        
         console.log(`🫧 Toggled ${category} visibility:`, visible);
+    }
+    
+    /**
+     * Update category UI state
+     */
+    updateCategoryUIState(category, visible) {
+        // Update emotion panel items
+        const emotionItems = document.querySelectorAll(`.emotion-item[data-category="${category}"]`);
+        emotionItems.forEach(item => {
+            if (visible) {
+                item.classList.add('active');
+                item.classList.remove('inactive');
+            } else {
+                item.classList.remove('active');
+                item.classList.add('inactive');
+            }
+        });
+        
+        // Update main category stats if they exist
+        const categoryElements = document.querySelectorAll(`.category-stat.${category}`);
+        categoryElements.forEach(element => {
+            if (visible) {
+                element.style.opacity = '1';
+                element.style.filter = 'none';
+            } else {
+                element.style.opacity = '0.5';
+                element.style.filter = 'grayscale(100%)';
+            }
+        });
     }
     
     /**

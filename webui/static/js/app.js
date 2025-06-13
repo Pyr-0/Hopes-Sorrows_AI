@@ -223,24 +223,26 @@ class HopesSorrowsApp {
      * Initialize Enhanced GLSL Emotion Visualizer
      */
     async initializeVisualizer() {
-        console.log('🎨 Initializing Enhanced GLSL Emotion Visualizer...');
+        console.log('🎨 Initializing Emotion Visualizers...');
         
         try {
-            // Check if EmotionVisualizer class is available
-            if (typeof EmotionVisualizer === 'undefined') {
-                throw new Error('EmotionVisualizer class not found');
+            // Initialize background emotion visualizer
+            if (typeof EmotionVisualizer !== 'undefined') {
+                this.backgroundVisualizer = new EmotionVisualizer();
+                await this.backgroundVisualizer.init(this.elements.visualizationContainer);
+                console.log('✅ Background visualizer initialized');
             }
             
-            // Create visualizer instance
-            this.emotionVisualizer = new EmotionVisualizer();
+            // Initialize blob emotion visualizer
+            if (typeof BlobEmotionVisualizer !== 'undefined') {
+                this.emotionVisualizer = new BlobEmotionVisualizer();
+                await this.emotionVisualizer.init(this.elements.visualizationContainer);
+                console.log('✅ Blob visualizer initialized');
+            } else {
+                throw new Error('BlobEmotionVisualizer class not found');
+            }
             
-            // Initialize with container
-            await this.emotionVisualizer.init(this.elements.visualizationContainer);
-            
-            // Set up event handlers for visualizer
-            this.setupVisualizerEventHandlers();
-            
-            console.log('✅ Enhanced GLSL Emotion Visualizer initialized');
+            console.log('✅ All visualizers initialized successfully');
             
         } catch (error) {
             console.error('❌ Visualizer initialization failed:', error);
@@ -360,16 +362,28 @@ class HopesSorrowsApp {
         const viewBtn = document.getElementById('analysis-view-btn');
         
         if (continueBtn) {
-            continueBtn.addEventListener('click', () => {
+            continueBtn.addEventListener('click', (e) => {
+                console.log('🎯 Continue button clicked');
+                e.preventDefault();
+                e.stopPropagation();
                 this.hideAnalysisConfirmation();
             });
+        } else {
+            console.warn('⚠️ Continue button not found');
         }
         
         if (viewBtn) {
-            viewBtn.addEventListener('click', () => {
+            viewBtn.addEventListener('click', (e) => {
+                console.log('🎯 View button clicked');
+                e.preventDefault();
+                e.stopPropagation();
                 this.hideAnalysisConfirmation();
-                this.toggleBlobInfo();
+                setTimeout(() => {
+                    this.toggleBlobInfo();
+                }, 300);
             });
+        } else {
+            console.warn('⚠️ View button not found');
         }
         
         // Error panel dismiss
@@ -411,171 +425,8 @@ class HopesSorrowsApp {
      * Add visualization mode controls to the UI
      */
     addVisualizationControls() {
-        // Create mode toggle button
-        const modeToggle = document.createElement('button');
-        modeToggle.id = 'mode-toggle';
-        modeToggle.className = 'mode-toggle-btn';
-        modeToggle.innerHTML = '🎨';
-        modeToggle.title = 'Toggle Visualization Mode (M)';
-        modeToggle.style.cssText = `
-            position: fixed;
-            top: 100px;
-            right: 20px;
-            z-index: 1000;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: rgba(21, 21, 21, 0.9);
-            border: 2px solid rgba(255, 215, 0, 0.3);
-            color: white;
-            font-size: 20px;
-            cursor: pointer;
-            backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
-            opacity: 0;
-            transform: scale(0.8) translateX(20px);
-        `;
-        
-        modeToggle.addEventListener('click', () => {
-            if (this.emotionVisualizer) {
-                this.emotionVisualizer.toggleVisualizationMode();
-                
-                // Add click animation
-                if (typeof anime !== 'undefined') {
-                    anime({
-                        targets: modeToggle,
-                        scale: [1, 0.9, 1.1, 1],
-                        duration: 400,
-                        easing: 'easeOutElastic(1, .8)'
-                    });
-                }
-            }
-        });
-        
-        modeToggle.addEventListener('mouseenter', () => {
-            if (typeof anime !== 'undefined') {
-                anime({
-                    targets: modeToggle,
-                    scale: 1.1,
-                    borderColor: 'rgba(255, 215, 0, 0.6)',
-                    duration: 200,
-                    easing: 'easeOutCubic'
-                });
-            } else {
-                modeToggle.style.transform = 'scale(1.1)';
-                modeToggle.style.borderColor = 'rgba(255, 215, 0, 0.6)';
-            }
-        });
-        
-        modeToggle.addEventListener('mouseleave', () => {
-            if (typeof anime !== 'undefined') {
-                anime({
-                    targets: modeToggle,
-                    scale: 1,
-                    borderColor: 'rgba(255, 215, 0, 0.3)',
-                    duration: 200,
-                    easing: 'easeOutCubic'
-                });
-            } else {
-                modeToggle.style.transform = 'scale(1)';
-                modeToggle.style.borderColor = 'rgba(255, 215, 0, 0.3)';
-            }
-        });
-        
-        document.body.appendChild(modeToggle);
-        
-        // Create camera reset button
-        const resetBtn = document.createElement('button');
-        resetBtn.id = 'camera-reset';
-        resetBtn.className = 'camera-reset-btn';
-        resetBtn.innerHTML = '🎯';
-        resetBtn.title = 'Reset Camera (R)';
-        resetBtn.style.cssText = `
-            position: fixed;
-            top: 160px;
-            right: 20px;
-            z-index: 1000;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: rgba(21, 21, 21, 0.9);
-            border: 2px solid rgba(255, 215, 0, 0.3);
-            color: white;
-            font-size: 20px;
-            cursor: pointer;
-            backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
-            opacity: 0;
-            transform: scale(0.8) translateX(20px);
-        `;
-        
-        resetBtn.addEventListener('click', () => {
-            if (this.emotionVisualizer) {
-                this.emotionVisualizer.resetCamera();
-                
-                // Add click animation
-                if (typeof anime !== 'undefined') {
-                    anime({
-                        targets: resetBtn,
-                        scale: [1, 0.9, 1.1, 1],
-                        duration: 400,
-                        easing: 'easeOutElastic(1, .8)'
-                    });
-                }
-            }
-        });
-        
-        resetBtn.addEventListener('mouseenter', () => {
-            if (typeof anime !== 'undefined') {
-                anime({
-                    targets: resetBtn,
-                    scale: 1.1,
-                    borderColor: 'rgba(255, 215, 0, 0.6)',
-                    duration: 200,
-                    easing: 'easeOutCubic'
-                });
-            } else {
-                resetBtn.style.transform = 'scale(1.1)';
-                resetBtn.style.borderColor = 'rgba(255, 215, 0, 0.6)';
-            }
-        });
-        
-        resetBtn.addEventListener('mouseleave', () => {
-            if (typeof anime !== 'undefined') {
-                anime({
-                    targets: resetBtn,
-                    scale: 1,
-                    borderColor: 'rgba(255, 215, 0, 0.3)',
-                    duration: 200,
-                    easing: 'easeOutCubic'
-                });
-            } else {
-                resetBtn.style.transform = 'scale(1)';
-                resetBtn.style.borderColor = 'rgba(255, 215, 0, 0.3)';
-            }
-        });
-        
-        document.body.appendChild(resetBtn);
-        
-        // Animate buttons entrance after a delay
-        setTimeout(() => {
-            if (typeof anime !== 'undefined') {
-                anime({
-                    targets: [modeToggle, resetBtn],
-                    opacity: [0, 1],
-                    translateX: [20, 0],
-                    scale: [0.8, 1],
-                    delay: anime.stagger(200),
-                    duration: 800,
-                    easing: 'easeOutElastic(1, .8)'
-                });
-            } else {
-                modeToggle.style.opacity = '1';
-                modeToggle.style.transform = 'scale(1) translateX(0)';
-                resetBtn.style.opacity = '1';
-                resetBtn.style.transform = 'scale(1) translateX(0)';
-            }
-        }, 1000);
+        // Remove complex controls - keep it simple
+        console.log('✅ Simple visualization controls ready');
     }
     
     /**
@@ -704,6 +555,9 @@ class HopesSorrowsApp {
     handleAnalysisComplete(data) {
         console.log('🎉 Analysis complete:', data);
         
+        // Hide processing panel first
+        this.hideProcessingPanel();
+        
         // Add new blobs to visualizer
         if (data.blobs && this.emotionVisualizer) {
             data.blobs.forEach((blobData, index) => {
@@ -714,7 +568,9 @@ class HopesSorrowsApp {
         }
         
         // Show analysis confirmation with detailed results
-        this.showAnalysisConfirmation(data);
+        setTimeout(() => {
+            this.showAnalysisConfirmation(data);
+        }, 500); // Small delay to ensure blobs are added first
         
         // Update stats
         setTimeout(() => {
@@ -1001,10 +857,62 @@ class HopesSorrowsApp {
         // Show the panel with animation
         this.elements.analysisConfirmation.classList.add('visible');
         
+        // Re-attach button event listeners after panel is shown
+        setTimeout(() => {
+            const continueBtn = document.getElementById('analysis-continue-btn');
+            const viewBtn = document.getElementById('analysis-view-btn');
+            
+            if (continueBtn) {
+                // Remove any existing listeners
+                continueBtn.replaceWith(continueBtn.cloneNode(true));
+                const newContinueBtn = document.getElementById('analysis-continue-btn');
+                newContinueBtn.addEventListener('click', (e) => {
+                    console.log('🎯 Continue button clicked');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.hideAnalysisConfirmation();
+                });
+                console.log('✅ Continue button listener attached');
+            } else {
+                console.warn('⚠️ Continue button not found after panel shown');
+            }
+            
+            if (viewBtn) {
+                // Remove any existing listeners
+                viewBtn.replaceWith(viewBtn.cloneNode(true));
+                const newViewBtn = document.getElementById('analysis-view-btn');
+                newViewBtn.addEventListener('click', (e) => {
+                    console.log('🎯 View button clicked');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.hideAnalysisConfirmation();
+                    setTimeout(() => {
+                        this.toggleBlobInfo();
+                    }, 300);
+                });
+                console.log('✅ View button listener attached');
+            } else {
+                console.warn('⚠️ View button not found after panel shown');
+            }
+            
+            // Add backdrop click handler
+            const handleBackdropClick = (e) => {
+                // Only close if clicking the backdrop (not the content)
+                if (e.target === this.elements.analysisConfirmation && !e.target.closest('.analysis-confirmation-content')) {
+                    console.log('🎯 Backdrop clicked, closing analysis confirmation');
+                    this.hideAnalysisConfirmation();
+                    this.elements.analysisConfirmation.removeEventListener('click', handleBackdropClick);
+                }
+            };
+            
+            this.elements.analysisConfirmation.addEventListener('click', handleBackdropClick);
+            console.log('✅ Backdrop click handler attached');
+        }, 100);
+        
         // Animate panel entrance
         if (typeof anime !== 'undefined') {
             anime({
-                targets: this.elements.analysisConfirmation,
+                targets: this.elements.analysisConfirmation.querySelector('.analysis-confirmation-content'),
                 scale: [0.8, 1],
                 opacity: [0, 1],
                 duration: 800,
@@ -1040,8 +948,12 @@ class HopesSorrowsApp {
      * Hide analysis confirmation
      */
     hideAnalysisConfirmation() {
+        console.log('🎯 Hiding analysis confirmation');
         if (this.elements.analysisConfirmation) {
             this.elements.analysisConfirmation.classList.remove('visible');
+            console.log('✅ Analysis confirmation hidden');
+        } else {
+            console.warn('⚠️ Analysis confirmation element not found');
         }
     }
     
@@ -1063,47 +975,16 @@ class HopesSorrowsApp {
             const isActive = this.elements.blobInfoPanel.classList.contains('active');
             
             if (isActive) {
-                // Hide panel with animation
-                if (typeof anime !== 'undefined') {
-                    anime({
-                        targets: this.elements.blobInfoPanel,
-                        translateX: [-350, 0],
-                        duration: 400,
-                        easing: 'easeInCubic',
-                        complete: () => {
-                            this.elements.blobInfoPanel.classList.remove('active');
-                        }
-                    });
-                } else {
-                    this.elements.blobInfoPanel.classList.remove('active');
-                }
+                // Hide panel
+                this.elements.blobInfoPanel.classList.remove('active');
                 this.elements.blobInfoToggle.classList.remove('active');
+                console.log('🎨 Blob info panel hidden');
             } else {
-                // Show panel with animation
+                // Show panel
                 this.elements.blobInfoPanel.classList.add('active');
                 this.elements.blobInfoToggle.classList.add('active');
-                
-                if (typeof anime !== 'undefined') {
-                    anime({
-                        targets: this.elements.blobInfoPanel,
-                        translateX: [0, -350],
-                        duration: 600,
-                        easing: 'easeOutElastic(1, .8)'
-                    });
-                    
-                    // Animate category stats
-                    const categoryStats = this.elements.blobInfoPanel.querySelectorAll('.category-stat');
-                    anime({
-                        targets: categoryStats,
-                        opacity: [0, 1],
-                        translateX: [-20, 0],
-                        delay: anime.stagger(100, {start: 200}),
-                        duration: 500,
-                        easing: 'easeOutCubic'
-                    });
-                }
-                
                 this.updateBlobStats();
+                console.log('🎨 Blob info panel shown');
             }
         }
     }
