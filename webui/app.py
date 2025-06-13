@@ -66,6 +66,11 @@ def debug():
     """Debug page for testing GLSL visualization"""
     return render_template('debug.html')
 
+@app.route('/test')
+def test():
+    """Simple test page for debugging initialization issues"""
+    return send_file('test_simple.html')
+
 @app.route('/api/get_all_blobs')
 def get_all_blobs():
     """Get all sentiment analysis data for visualization."""
