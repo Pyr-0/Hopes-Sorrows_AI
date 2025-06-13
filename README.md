@@ -148,6 +148,14 @@ AI/Final_Project/
 - **Confidence Scoring**: Analysis reliability metrics
 - **Dual Analysis**: Transformer + LLM validation and cross-referencing
 
+## 📚 Documentation
+
+For detailed technical documentation, development reports, and internal guides, see the [`docs/`](docs/) directory:
+
+- **[Development Reports](docs/development/)** - Technical implementation details and bug fixes
+- **[Internal Guides](docs/internal/)** - Edge case handling and troubleshooting
+- **[Documentation Index](docs/README.md)** - Complete documentation overview
+
 ## 🗄️ Database Schema
 
 ### Tables
