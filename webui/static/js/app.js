@@ -18,7 +18,7 @@ class HopesSorrowsApp {
         // UI Elements
         this.elements = {};
         
-        // Enhanced Emotion Visualizer (GLSL-based)
+        // Dual Emotion Visualizer (GLSL + Blobs)
         this.emotionVisualizer = null;
         
         // Blob management
@@ -190,21 +190,26 @@ class HopesSorrowsApp {
      * Initialize GLSL-Enhanced Emotion Visualizer
      */
     async initializeVisualizer() {
-        console.log('🎨 Initializing GLSL-Enhanced Emotion Visualizer...');
+        console.log('🎨 Initializing Emotion Visualizers...');
         
         try {
-            // Check if IntegratedEmotionVisualizer class is available
-            if (typeof IntegratedEmotionVisualizer === 'undefined') {
-                throw new Error('IntegratedEmotionVisualizer class not found');
+            // Initialize background emotion visualizer
+            if (typeof EmotionVisualizer !== 'undefined') {
+                this.backgroundVisualizer = new EmotionVisualizer();
+                await this.backgroundVisualizer.init(this.elements.visualizationContainer);
+                console.log('✅ Background visualizer initialized');
             }
             
-            // Initialize the visualizer
-            this.emotionVisualizer = new IntegratedEmotionVisualizer();
+            // Initialize blob emotion visualizer
+            if (typeof BlobEmotionVisualizer !== 'undefined') {
+                this.emotionVisualizer = new BlobEmotionVisualizer();
+                await this.emotionVisualizer.init(this.elements.visualizationContainer);
+                console.log('✅ Blob visualizer initialized');
+            } else {
+                throw new Error('BlobEmotionVisualizer class not found');
+            }
             
-            // Initialize with container
-            await this.emotionVisualizer.init(this.elements.visualizationContainer);
-            
-            console.log('✅ GLSL-Enhanced Emotion Visualizer initialized');
+            console.log('✅ All visualizers initialized successfully');
             
         } catch (error) {
             console.error('❌ Visualizer initialization failed:', error);
@@ -294,11 +299,41 @@ class HopesSorrowsApp {
             });
         }
         
-        // Prevent blob info panel clicks from reaching canvas
-        if (this.elements.blobInfoPanel) {
-            this.elements.blobInfoPanel.addEventListener('click', (e) => {
-                e.stopPropagation();
+        // Blob info panel close button
+        const blobInfoClose = document.querySelector('.blob-info-close');
+        if (blobInfoClose) {
+            blobInfoClose.addEventListener('click', () => {
+                this.toggleBlobInfo();
             });
+        }
+        
+        // Analysis confirmation buttons
+        const continueBtn = document.getElementById('analysis-continue-btn');
+        const viewBtn = document.getElementById('analysis-view-btn');
+        
+        if (continueBtn) {
+            continueBtn.addEventListener('click', (e) => {
+                console.log('🎯 Continue button clicked');
+                e.preventDefault();
+                e.stopPropagation();
+                this.hideAnalysisConfirmation();
+            });
+        } else {
+            console.warn('⚠️ Continue button not found');
+        }
+        
+        if (viewBtn) {
+            viewBtn.addEventListener('click', (e) => {
+                console.log('🎯 View button clicked');
+                e.preventDefault();
+                e.stopPropagation();
+                this.hideAnalysisConfirmation();
+                setTimeout(() => {
+                    this.toggleBlobInfo();
+                }, 300);
+            });
+        } else {
+            console.warn('⚠️ View button not found');
         }
         
         // Error panel dismiss
@@ -346,7 +381,31 @@ class HopesSorrowsApp {
     }
     
     /**
-     * Start audio recording
+     * Add visualization mode controls to the UI
+     */
+    addVisualizationControls() {
+        // Remove complex controls - keep it simple
+        console.log('✅ Simple visualization controls ready');
+    }
+    
+    /**
+     * Update category UI based on visibility
+     */
+    updateCategoryUI(category, visible) {
+        const categoryElement = document.querySelector(`.category-stat.${category}`);
+        if (categoryElement) {
+            if (visible) {
+                categoryElement.style.opacity = '1';
+                categoryElement.style.filter = 'none';
+            } else {
+                categoryElement.style.opacity = '0.5';
+                categoryElement.style.filter = 'grayscale(100%)';
+            }
+        }
+    }
+    
+    /**
+     * Start recording audio
      */
     async startRecording() {
         console.log('🎤 Starting recording...');
@@ -487,37 +546,34 @@ class HopesSorrowsApp {
     handleAnalysisComplete(data) {
         console.log('🎉 Handling analysis completion:', data);
         
-        try {
-            // Hide processing panel
-            this.hideProcessingPanel();
-            
-            // Update status
-            this.updateStatus('complete');
-            
-            // Add new blob to visualizer
-            if (data.blobs && this.emotionVisualizer) {
-                data.blobs.forEach(blob => {
-                    this.emotionVisualizer.addBlob(blob);
-                });
-                
-                // Update stats
-                this.updateBlobStats(data.blobs);
-            }
-            
-            // Show analysis confirmation
-            this.showAnalysisConfirmation(data);
-            
-            // Reset to ready state after delay
-            setTimeout(() => {
-                this.updateStatus('ready');
-            }, 3000);
-            
-            console.log('✅ Analysis completion handled');
-            
-        } catch (error) {
-            console.error('❌ Failed to handle analysis completion:', error);
-            this.showError('Analysis completed but display failed.');
+        // Hide processing panel first
+        this.hideProcessingPanel();
+        
+        // Add new blobs to visualizer
+        if (data.blobs && this.emotionVisualizer) {
+            data.blobs.forEach((blobData, index) => {
+                setTimeout(() => {
+                    this.emotionVisualizer.addBlob(blobData);
+                }, index * 200); // Stagger animations
+            });
         }
+        
+        // Show analysis confirmation with detailed results
+        setTimeout(() => {
+            this.showAnalysisConfirmation(data);
+        }, 500); // Small delay to ensure blobs are added first
+        
+        // Update stats
+        setTimeout(() => {
+            this.updateBlobStats();
+        }, data.blobs ? data.blobs.length * 200 + 500 : 500);
+        
+        this.updateStatus('complete');
+        
+        // Reset to ready after a delay
+        setTimeout(() => {
+            this.updateStatus('ready');
+        }, 3000);
     }
     
     /**
@@ -654,16 +710,117 @@ class HopesSorrowsApp {
             // Update confirmation content if needed
             this.elements.analysisConfirmation.classList.add('visible');
             
-            // Auto-hide after 5 seconds
-            setTimeout(() => {
-                this.hideAnalysisConfirmation();
-            }, 5000);
+            // Animate emotion tags
+            const emotionTags = emotionList.querySelectorAll('.analysis-emotion');
+            if (typeof anime !== 'undefined') {
+                anime({
+                    targets: emotionTags,
+                    opacity: [0, 1],
+                    translateY: [20, 0],
+                    delay: anime.stagger(100, {start: 500}),
+                    duration: 600,
+                    easing: 'easeOutCubic'
+                });
+            }
+        }
+        
+        // Show the panel with animation
+        this.elements.analysisConfirmation.classList.add('visible');
+        
+        // Re-attach button event listeners after panel is shown
+        setTimeout(() => {
+            const continueBtn = document.getElementById('analysis-continue-btn');
+            const viewBtn = document.getElementById('analysis-view-btn');
+            
+            if (continueBtn) {
+                // Remove any existing listeners
+                continueBtn.replaceWith(continueBtn.cloneNode(true));
+                const newContinueBtn = document.getElementById('analysis-continue-btn');
+                newContinueBtn.addEventListener('click', (e) => {
+                    console.log('🎯 Continue button clicked');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.hideAnalysisConfirmation();
+                });
+                console.log('✅ Continue button listener attached');
+            } else {
+                console.warn('⚠️ Continue button not found after panel shown');
+            }
+            
+            if (viewBtn) {
+                // Remove any existing listeners
+                viewBtn.replaceWith(viewBtn.cloneNode(true));
+                const newViewBtn = document.getElementById('analysis-view-btn');
+                newViewBtn.addEventListener('click', (e) => {
+                    console.log('🎯 View button clicked');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.hideAnalysisConfirmation();
+                    setTimeout(() => {
+                        this.toggleBlobInfo();
+                    }, 300);
+                });
+                console.log('✅ View button listener attached');
+            } else {
+                console.warn('⚠️ View button not found after panel shown');
+            }
+            
+            // Add backdrop click handler
+            const handleBackdropClick = (e) => {
+                // Only close if clicking the backdrop (not the content)
+                if (e.target === this.elements.analysisConfirmation && !e.target.closest('.analysis-confirmation-content')) {
+                    console.log('🎯 Backdrop clicked, closing analysis confirmation');
+                    this.hideAnalysisConfirmation();
+                    this.elements.analysisConfirmation.removeEventListener('click', handleBackdropClick);
+                }
+            };
+            
+            this.elements.analysisConfirmation.addEventListener('click', handleBackdropClick);
+            console.log('✅ Backdrop click handler attached');
+        }, 100);
+        
+        // Animate panel entrance
+        if (typeof anime !== 'undefined') {
+            anime({
+                targets: this.elements.analysisConfirmation.querySelector('.analysis-confirmation-content'),
+                scale: [0.8, 1],
+                opacity: [0, 1],
+                duration: 800,
+                easing: 'easeOutElastic(1, .8)'
+            });
+        }
+        
+        console.log('📊 Analysis confirmation shown with animations');
+    }
+    
+    /**
+     * Animate counter with Anime.js
+     */
+    animateCounter(element, from, to, duration = 1000, suffix = '') {
+        if (typeof anime !== 'undefined') {
+            const obj = { value: from };
+            anime({
+                targets: obj,
+                value: to,
+                duration: duration,
+                easing: 'easeOutCubic',
+                update: () => {
+                    element.textContent = Math.round(obj.value) + suffix;
+                }
+            });
+        } else {
+            // Fallback without animation
+            element.textContent = to + suffix;
         }
     }
     
     hideAnalysisConfirmation() {
+        console.log('🎯 Hiding analysis confirmation');
         if (this.elements.analysisConfirmation) {
             this.elements.analysisConfirmation.classList.remove('visible');
+            console.log('✅ Analysis confirmation hidden');
+        } else {
+            console.warn('⚠️ Analysis confirmation element not found');
         }
     }
     
@@ -685,11 +842,16 @@ class HopesSorrowsApp {
             const isActive = this.elements.blobInfoPanel.classList.contains('active');
             
             if (isActive) {
+                // Hide panel
                 this.elements.blobInfoPanel.classList.remove('active');
                 this.elements.blobInfoToggle.classList.remove('active');
+                console.log('🎨 Blob info panel hidden');
             } else {
+                // Show panel
                 this.elements.blobInfoPanel.classList.add('active');
                 this.elements.blobInfoToggle.classList.add('active');
+                this.updateBlobStats();
+                console.log('🎨 Blob info panel shown');
             }
         }
     }

@@ -323,11 +323,11 @@ class AudioRecorder {
             
             // Create form data for upload
             const formData = new FormData();
-            formData.append('audio_file', audioBlob, `recording_${this.sessionId}.wav`);
+            formData.append('audio', audioBlob, `recording_${this.sessionId}.wav`);
             formData.append('session_id', this.sessionId);
             
             // Upload and analyze
-            const response = await fetch('/api/upload_audio', {
+            const response = await fetch('/upload_audio', {
                 method: 'POST',
                 body: formData
             });
@@ -335,17 +335,19 @@ class AudioRecorder {
             const result = await response.json();
             
             if (result.success) {
-                // Success - new blobs will be added via WebSocket
+                // Success - let the main app handle the analysis completion
+                console.log('✅ Audio processed successfully, notifying main app');
+                
+                // Notify the main app about the analysis completion
+                if (window.hopesSorrowsApp && window.hopesSorrowsApp.handleAnalysisComplete) {
+                    window.hopesSorrowsApp.handleAnalysisComplete(result);
+                }
+                
+                // Reset UI state
                 this.resetToInitialState();
-                this.updateStatus('✨ Voice analyzed successfully!', 'Your emotions are now part of the landscape');
                 
                 // Generate new session ID for next recording
                 this.sessionId = this.generateSessionId();
-                
-                // Auto-hide success message after 3 seconds
-                setTimeout(() => {
-                    this.updateStatus('Ready to capture your voice', 'Click below to start sharing');
-                }, 3000);
                 
             } else {
                 // Handle different error types

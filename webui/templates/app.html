@@ -36,8 +36,9 @@
         </div>
         
         <!-- Blob Info Toggle Button -->
-        <button id="blob-info-toggle" class="blob-info-toggle" title="Toggle Emotional Landscape">
-            📊
+        <button id="blob-info-toggle" class="blob-info-toggle" title="Toggle Emotion Categories">
+            <div class="toggle-icon">🎨</div>
+            <div class="toggle-label">Emotions</div>
         </button>
         
         <!-- Recording Interface -->
@@ -133,30 +134,32 @@
         
         <!-- Voice Analysis Confirmation Panel -->
         <div id="analysis-confirmation" class="analysis-confirmation">
-            <h3>✨ Analysis Complete!</h3>
-            <div class="analysis-summary">
-                <!-- Success message will be inserted here by JavaScript -->
-            </div>
-            <div class="analysis-stats">
-                <div class="analysis-stat">
-                    <div class="analysis-stat-number" id="analysis-utterances">0</div>
-                    <div class="analysis-stat-label">Utterances</div>
+            <div class="analysis-confirmation-content">
+                <h3>✨ Analysis Complete!</h3>
+                <div class="analysis-summary">
+                    <!-- Success message will be inserted here by JavaScript -->
                 </div>
-                <div class="analysis-stat">
-                    <div class="analysis-stat-number" id="analysis-emotions">0</div>
-                    <div class="analysis-stat-label">Emotions</div>
+                <div class="analysis-stats">
+                    <div class="analysis-stat">
+                        <div class="analysis-stat-number" id="analysis-utterances">0</div>
+                        <div class="analysis-stat-label">Utterances</div>
+                    </div>
+                    <div class="analysis-stat">
+                        <div class="analysis-stat-number" id="analysis-emotions">0</div>
+                        <div class="analysis-stat-label">Emotions</div>
+                    </div>
+                    <div class="analysis-stat">
+                        <div class="analysis-stat-number" id="analysis-confidence">0%</div>
+                        <div class="analysis-stat-label">Confidence</div>
+                    </div>
                 </div>
-                <div class="analysis-stat">
-                    <div class="analysis-stat-number" id="analysis-confidence">0%</div>
-                    <div class="analysis-stat-label">Confidence</div>
+                <div class="analysis-emotions" id="analysis-emotion-list">
+                    <!-- Emotion tags will be populated here -->
                 </div>
-            </div>
-            <div class="analysis-emotions" id="analysis-emotion-list">
-                <!-- Emotion tags will be populated here -->
-            </div>
-            <div class="analysis-actions">
-                <button class="analysis-btn primary" id="analysis-continue-btn">Continue Exploring</button>
-                <button class="analysis-btn secondary" id="analysis-view-btn">View Landscape</button>
+                <div class="analysis-actions">
+                    <button class="analysis-btn primary" id="analysis-continue-btn">Continue Exploring</button>
+                    <button class="analysis-btn secondary" id="analysis-view-btn">View Landscape</button>
+                </div>
             </div>
         </div>
         
@@ -199,6 +202,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
     <script src="{{ url_for('static', filename='js/emotion-visualizer.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/blob-visualizer.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/audio-recorder.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     
     <!-- WebGL Fallback Detection -->
