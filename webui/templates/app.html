@@ -41,32 +41,6 @@
             <div class="toggle-label">Emotions</div>
         </button>
         
-        <!-- Emotion Category Filter Controls -->
-        <div class="category-controls">
-            <div class="category-toggles">
-                <div class="category-toggle hope active" data-category="hope">
-                    <div class="category-dot"></div>
-                    <span>Hope</span>
-                </div>
-                <div class="category-toggle sorrow active" data-category="sorrow">
-                    <div class="category-dot"></div>
-                    <span>Sorrow</span>
-                </div>
-                <div class="category-toggle transformative active" data-category="transformative">
-                    <div class="category-dot"></div>
-                    <span>Transform</span>
-                </div>
-                <div class="category-toggle ambivalent active" data-category="ambivalent">
-                    <div class="category-dot"></div>
-                    <span>Ambivalent</span>
-                </div>
-                <div class="category-toggle reflective_neutral active" data-category="reflective_neutral">
-                    <div class="category-dot"></div>
-                    <span>Reflective</span>
-                </div>
-            </div>
-        </div>
-        
         <!-- Recording Interface -->
         <div class="recording-interface">
             <div class="recording-panel">
@@ -115,7 +89,7 @@
         </div>
         
         <!-- Blob Information Panel -->
-        <div id="blob-info" class="blob-info-panel">
+        <div id="blob-info-panel" class="blob-info-panel">
             <div class="blob-info-content">
                 <div class="blob-info-header">
                     <h3 class="blob-info-title">Emotional Landscape</h3>
@@ -127,30 +101,30 @@
                     </div>
                     <div class="blob-categories">
                         <div class="category-stats">
-                            <div class="category-stat hope">
+                            <div class="category-stat hope" data-category="hope">
                                 <div class="category-dot"></div>
                                 <span class="category-name">Hope</span>
                                 <span class="category-count" id="hope-count">0</span>
                             </div>
-                            <div class="category-stat sorrow">
+                            <div class="category-stat sorrow" data-category="sorrow">
                                 <div class="category-dot"></div>
                                 <span class="category-name">Sorrow</span>
                                 <span class="category-count" id="sorrow-count">0</span>
                             </div>
-                            <div class="category-stat transformative">
+                            <div class="category-stat transformative" data-category="transformative">
                                 <div class="category-dot"></div>
                                 <span class="category-name">Transformative</span>
                                 <span class="category-count" id="transformative-count">0</span>
                             </div>
-                            <div class="category-stat ambivalent">
+                            <div class="category-stat ambivalent" data-category="ambivalent">
                                 <div class="category-dot"></div>
                                 <span class="category-name">Ambivalent</span>
                                 <span class="category-count" id="ambivalent-count">0</span>
                             </div>
-                            <div class="category-stat reflective">
+                            <div class="category-stat reflective_neutral" data-category="reflective_neutral">
                                 <div class="category-dot"></div>
                                 <span class="category-name">Reflective</span>
-                                <span class="category-count" id="reflective-count">0</span>
+                                <span class="category-count" id="reflective-neutral-count">0</span>
                             </div>
                         </div>
                     </div>

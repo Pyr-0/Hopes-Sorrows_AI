@@ -139,8 +139,8 @@ class HopesSorrowsApp {
             // Panels
             processingPanel: document.querySelector('.processing-panel'),
             errorPanel: document.querySelector('.error-panel'),
-            blobInfoPanel: document.querySelector('.blob-info-panel'),
-            blobInfoToggle: document.querySelector('.blob-info-toggle'),
+            blobInfoPanel: document.getElementById('blob-info-panel'),
+            blobInfoToggle: document.getElementById('blob-info-toggle'),
             analysisConfirmation: document.querySelector('.analysis-confirmation'),
             
             // Loading
@@ -419,23 +419,26 @@ class HopesSorrowsApp {
             });
         }
         
-        // Category toggle controls
-        const categoryToggles = document.querySelectorAll('.category-toggle');
-        categoryToggles.forEach(toggle => {
-            toggle.addEventListener('click', (e) => {
+        // Category stats as toggle controls (in blob info panel)
+        const categoryStats = document.querySelectorAll('.category-stat');
+        categoryStats.forEach(stat => {
+            // Initialize as active
+            stat.classList.add('active');
+            
+            stat.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 
-                const category = toggle.dataset.category;
-                const isActive = toggle.classList.contains('active');
+                const category = stat.dataset.category;
+                const isActive = stat.classList.contains('active');
                 
                 // Toggle the visual state
                 if (isActive) {
-                    toggle.classList.remove('active');
-                    toggle.classList.add('inactive');
+                    stat.classList.remove('active');
+                    stat.classList.add('inactive');
                 } else {
-                    toggle.classList.remove('inactive');
-                    toggle.classList.add('active');
+                    stat.classList.remove('inactive');
+                    stat.classList.add('active');
                 }
                 
                 // Update the visualizer
