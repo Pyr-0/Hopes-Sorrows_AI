@@ -58,9 +58,7 @@ class Config:
             
             # Paths
             'DATA_DIR': Path('data'),
-            'LOGS_DIR': Path('logs'),
             'RECORDINGS_DIR': Path('data/recordings'),
-            'UPLOADS_DIR': Path('data/uploads'),
             'DATABASES_DIR': Path('data/databases'),
         }
         
@@ -109,9 +107,7 @@ class Config:
         """Get the recordings directory path."""
         return self.get('RECORDINGS_DIR')
     
-    def get_uploads_path(self) -> Path:
-        """Get the uploads directory path."""
-        return self.get('UPLOADS_DIR')
+
     
     def get_databases_path(self) -> Path:
         """Get the databases directory path."""
@@ -121,9 +117,7 @@ class Config:
         """Ensure required directories exist."""
         directories = [
             self.get('DATA_DIR'),
-            self.get('LOGS_DIR'),
             self.get('RECORDINGS_DIR'),
-            self.get('UPLOADS_DIR'),
             self.get('DATABASES_DIR'),
         ]
         
