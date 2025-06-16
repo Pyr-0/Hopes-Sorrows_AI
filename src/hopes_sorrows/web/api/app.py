@@ -114,7 +114,8 @@ def create_app():
                         blob_data = {
                             'id': f"blob_{transcription.id}",
                             'speaker_id': transcription.speaker_id,
-                            'speaker_name': transcription.speaker.name if transcription.speaker else "Unknown",
+                            'speaker_name': transcription.speaker.display_name if transcription.speaker else "Unknown",
+                            'global_sequence': transcription.speaker.global_sequence if transcription.speaker else 0,
                             'text': transcription.text,
                             'category': primary_analysis.category,
                             'score': convert_to_serializable(primary_analysis.score),
@@ -182,9 +183,10 @@ def create_app():
                     transformer_sentiment = convert_to_serializable(utterance['transformer_sentiment'])
                     
                     blob_data = {
-                        'id': f"blob_{utterance.get('session_speaker_id', session_id)}_{len(new_blobs)}",
-                        'speaker_id': utterance.get('session_speaker_id', session_id),
+                        'id': f"blob_{utterance.get('speaker_id', session_id)}_{len(new_blobs)}",
+                        'speaker_id': utterance.get('speaker_id', session_id),
                         'speaker_name': utterance.get('speaker', 'Unknown'),
+                        'global_sequence': utterance.get('global_sequence', 0),
                         'text': utterance['text'],
                         'category': transformer_sentiment['category'],
                         'score': transformer_sentiment['score'],

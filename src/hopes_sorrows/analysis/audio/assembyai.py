@@ -38,42 +38,50 @@ API = os.getenv("ASSEMBLYAI_API_KEY")
 console = Console()
 
 class SpeakerManager:
-	"""Manages speaker identification and tracking for individual sessions"""
+	"""Manages speaker identification with global sequential numbering"""
 		
-	def __init__(self, db, session_id=None):
-		self.db = db
-		self.session_id = session_id or datetime.now().strftime("%Y%m%d_%H%M%S")
-		self.speaker_names = {}  # Map speaker IDs to names for this session
+	def __init__(self, db_manager):
+		self.db_manager = db_manager
+		self.recording_session = None
+		self.speaker_cache = {}  # Cache speakers for this session
 		
-	def get_speaker_name(self, speaker_id):
-		"""Get or create a unique speaker name for this session"""
-		# Check if we already have a name for this speaker in this session
-		if speaker_id in self.speaker_names:
-			return self.speaker_names[speaker_id]
+	def create_recording_session(self, session_name=None):
+		"""Create a new recording session"""
+		self.recording_session = self.db_manager.create_recording_session(session_name)
+		console.print(f"[green]✓[/green] Created recording session: {self.recording_session.session_name}")
+		return self.recording_session
 		
-		# Create unique speaker ID for this session
-		session_speaker_id = f"{self.session_id}_{speaker_id}"
+	def get_or_create_speaker(self, assemblyai_speaker_id):
+		"""Get or create a speaker with global sequential numbering"""
+		if not self.recording_session:
+			raise ValueError("Recording session must be created first")
 		
-		# Create unique name for this session
-		next_num = len(self.speaker_names) + 1
-		name = f"Speaker_{next_num}_{self.session_id}"  # Make name unique per session
+		# Check cache first
+		if assemblyai_speaker_id in self.speaker_cache:
+			return self.speaker_cache[assemblyai_speaker_id]
 		
-		try:
-			# Add speaker with session-specific ID and unique name
-			self.db.add_speaker(session_speaker_id, name)
-			self.speaker_names[speaker_id] = name
-			console.print(f"[green]✓[/green] Created new speaker: {name}")
-			return name
-		except Exception as e:
-			console.print(f"[red]Warning:[/red] Could not add speaker {session_speaker_id} with name {name}: {str(e)}")
-			# Fallback to using a generated name
-			fallback_name = f"Speaker_{speaker_id}_{self.session_id}"
-			self.speaker_names[speaker_id] = fallback_name
-			return fallback_name
+		# Get or create speaker
+		speaker = self.db_manager.get_or_create_speaker(
+			self.recording_session.id, 
+			assemblyai_speaker_id
+		)
+		
+		# Cache the speaker
+		self.speaker_cache[assemblyai_speaker_id] = speaker
+		
+		console.print(f"[green]✓[/green] Using speaker: {speaker.display_name}")
+		return speaker
+		
+	def finalize_session(self):
+		"""Finalize the recording session and update statistics"""
+		if self.recording_session:
+			self.db_manager.update_recording_session_stats(self.recording_session.id)
+			console.print(f"[green]✓[/green] Finalized session: {self.recording_session.session_name}")
 		
 	def close(self):
 		"""Clean up resources"""
-		self.speaker_names.clear()
+		self.finalize_session()
+		self.speaker_cache.clear()
 
 def record(duration=65, filename=None):
 	"""Record audio with timestamp in filename"""
@@ -118,6 +126,9 @@ def analyze_audio(audio_file, use_llm=True, expected_speakers=None):
 	# Initialize database manager
 	db_manager = DatabaseManager()
 	speaker_manager = SpeakerManager(db_manager)
+	
+	# Create recording session
+	recording_session = speaker_manager.create_recording_session()
 		
 	try:
 		# Configure AssemblyAI with enhanced speaker diarization settings AND content safety
@@ -252,12 +263,16 @@ def analyze_audio(audio_file, use_llm=True, expected_speakers=None):
 				console.print(f"[yellow]Proceeding with analysis but results may be unreliable[/yellow]")
 				
 			# Get or create speaker for this session
-			speaker_name = speaker_manager.get_speaker_name(speaker_id)
-			session_speaker_id = f"{speaker_manager.session_id}_{speaker_id}"
+			speaker = speaker_manager.get_or_create_speaker(speaker_id)
 			
-			# Store transcription with session-specific speaker ID
-			transcription = db_manager.add_transcription(session_speaker_id, text)
-			console.print(f"[blue]💾[/blue] Stored transcription for {speaker_name}: {text[:50]}...")
+			# Store transcription with enhanced metadata
+			transcription = db_manager.add_transcription(
+				speaker.id, 
+				text,
+				duration=(utterance.end - utterance.start) / 1000.0,  # Convert ms to seconds
+				confidence_score=getattr(utterance, 'confidence', None)
+			)
+			console.print(f"[blue]💾[/blue] Stored transcription for {speaker.display_name}: {text[:50]}...")
 			
 			# ENHANCED: Perform sentiment analysis with error handling
 			try:
@@ -301,8 +316,9 @@ def analyze_audio(audio_file, use_llm=True, expected_speakers=None):
 				console.print(f"[yellow]💾[/yellow] Stored LLM analysis: {llm_sentiment['category']}")
 			
 			results.append({
-				"speaker": speaker_name,
-				"session_speaker_id": session_speaker_id,
+				"speaker": speaker.display_name,
+				"speaker_id": speaker.id,
+				"global_sequence": speaker.global_sequence,
 				"text": text,
 				"start_time": utterance.start,
 				"end_time": utterance.end,
