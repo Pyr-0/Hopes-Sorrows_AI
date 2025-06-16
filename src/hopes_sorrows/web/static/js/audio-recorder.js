@@ -345,10 +345,14 @@ class AudioRecorder {
                 
                 // Notify the main app about the analysis completion
                 if (window.hopesSorrowsApp && window.hopesSorrowsApp.handleAnalysisComplete) {
+                    console.log('🎯 Calling main app handleAnalysisComplete with:', result);
                     window.hopesSorrowsApp.handleAnalysisComplete(result);
                 } else {
-                    console.warn('⚠️ Main app not available, showing fallback success message');
-                    this.showSuccessFallback(result);
+                    console.warn('⚠️ Main app not available, trying direct analysis confirmation');
+                    console.log('🔍 Available on window:', Object.keys(window).filter(k => k.includes('hopes') || k.includes('App')));
+                    
+                    // Try direct analysis confirmation
+                    this.showDirectAnalysisConfirmation(result);
                 }
                 
                 // Reset UI state after a short delay to let analysis panel show
@@ -429,6 +433,90 @@ class AudioRecorder {
         return types.find(type => MediaRecorder.isTypeSupported(type)) || 'audio/wav';
     }
     
+    showDirectAnalysisConfirmation(result) {
+        console.log('📊 Showing direct analysis confirmation');
+        
+        // Try to find and show the existing analysis confirmation panel
+        const analysisPanel = document.getElementById('analysis-confirmation');
+        if (analysisPanel) {
+            console.log('✅ Found analysis confirmation panel, showing it directly');
+            
+            // Populate the panel with data
+            this.populateAnalysisPanel(result);
+            
+            // Show the panel
+            analysisPanel.classList.add('visible');
+            
+            // Add event listeners
+            setTimeout(() => {
+                const continueBtn = document.getElementById('analysis-continue-btn');
+                const viewBtn = document.getElementById('analysis-view-btn');
+                
+                if (continueBtn) {
+                    continueBtn.addEventListener('click', () => {
+                        analysisPanel.classList.remove('visible');
+                    });
+                }
+                
+                if (viewBtn) {
+                    viewBtn.addEventListener('click', () => {
+                        analysisPanel.classList.remove('visible');
+                        // Try to show blob info panel
+                        const blobPanel = document.getElementById('blob-info-panel');
+                        if (blobPanel) {
+                            blobPanel.classList.add('active');
+                        }
+                    });
+                }
+            }, 100);
+            
+        } else {
+            console.warn('⚠️ Analysis confirmation panel not found, showing fallback');
+            this.showSuccessFallback(result);
+        }
+    }
+    
+    populateAnalysisPanel(result) {
+        const blobs = result.blobs || [];
+        const summary = result.processing_summary || {};
+        
+        // Update metrics
+        const utterancesEl = document.getElementById('analysis-utterances');
+        const emotionsEl = document.getElementById('analysis-emotions');
+        const confidenceEl = document.getElementById('analysis-confidence');
+        const durationEl = document.getElementById('analysis-duration');
+        
+        if (utterancesEl) utterancesEl.textContent = blobs.length;
+        if (emotionsEl) emotionsEl.textContent = [...new Set(blobs.map(b => b.category))].length;
+        if (confidenceEl) {
+            const avgConfidence = blobs.length > 0 ? 
+                Math.round(blobs.reduce((sum, b) => sum + (b.confidence || 0), 0) / blobs.length * 100) : 0;
+            confidenceEl.textContent = avgConfidence + '%';
+        }
+        if (durationEl) {
+            const duration = Math.min(44, Math.max(5, blobs.length * 3));
+            durationEl.textContent = duration + 's';
+        }
+        
+        // Update emotion list
+        const emotionListEl = document.getElementById('analysis-emotion-list');
+        if (emotionListEl && blobs.length > 0) {
+            const emotionCounts = {};
+            blobs.forEach(blob => {
+                const category = blob.category || 'unknown';
+                emotionCounts[category] = (emotionCounts[category] || 0) + 1;
+            });
+
+            emotionListEl.innerHTML = Object.entries(emotionCounts)
+                .map(([emotion, count]) => `
+                    <div class="analysis-emotion ${emotion}">
+                        <div class="analysis-emotion-dot"></div>
+                        <span>${emotion.charAt(0).toUpperCase() + emotion.slice(1)} (${count})</span>
+                    </div>
+                `).join('');
+        }
+    }
+
     showSuccessFallback(result) {
         // Create a success notification when main app isn't available
         const notification = document.createElement('div');

@@ -113,28 +113,38 @@ class DatabaseManager:
 
 	def update_recording_session_stats(self, session_id: int):
 		"""Update recording session statistics after processing"""
-		recording_session = self.session.query(RecordingSession).filter_by(id=session_id).first()
-		if not recording_session:
-			return
-		
-		# Count speakers in this session
-		speaker_count = self.session.query(Speaker).filter_by(recording_session_id=session_id).count()
-		
-		# Calculate average confidence from all transcriptions in this session
-		speakers = self.session.query(Speaker).filter_by(recording_session_id=session_id).all()
-		all_confidences = []
-		
-		for speaker in speakers:
-			for transcription in speaker.transcriptions:
-				if transcription.confidence_score:
-					all_confidences.append(transcription.confidence_score)
-		
-		quality_score = sum(all_confidences) / len(all_confidences) if all_confidences else None
-		
-		# Update session
-		recording_session.speaker_count = speaker_count
-		recording_session.quality_score = quality_score
-		self.session.commit()
+		try:
+			recording_session = self.session.query(RecordingSession).filter_by(id=session_id).first()
+			if not recording_session:
+				print(f"Warning: Recording session {session_id} not found")
+				return
+			
+			# Count speakers in this session
+			speaker_count = self.session.query(Speaker).filter_by(recording_session_id=session_id).count()
+			
+			# Calculate average confidence from all transcriptions in this session
+			speakers = self.session.query(Speaker).filter_by(recording_session_id=session_id).all()
+			all_confidences = []
+			
+			for speaker in speakers:
+				for transcription in speaker.transcriptions:
+					if transcription.confidence_score:
+						all_confidences.append(transcription.confidence_score)
+			
+			quality_score = sum(all_confidences) / len(all_confidences) if all_confidences else None
+			
+			# Update session
+			recording_session.speaker_count = speaker_count
+			recording_session.quality_score = quality_score
+			self.session.commit()
+			
+		except Exception as e:
+			print(f"Error updating recording session stats: {e}")
+			# Don't re-raise the exception - this is not critical for the main functionality
+			try:
+				self.session.rollback()
+			except:
+				pass
 
 	def get_transcription_with_analyses(self, transcription_id: int) -> Optional[Transcription]:
 		"""Get a transcription with all its sentiment analyses"""
@@ -167,6 +177,10 @@ class DatabaseManager:
 	def get_recording_session_by_id(self, session_id: int) -> Optional[RecordingSession]:
 		"""Get recording session by ID"""
 		return self.session.query(RecordingSession).filter_by(id=session_id).first()
+
+	def get_speakers_by_session(self, session_id: int):
+		"""Get all speakers for a specific recording session"""
+		return self.session.query(Speaker).filter_by(recording_session_id=session_id).all()
 
 	def close(self):
 		"""Close the database session"""

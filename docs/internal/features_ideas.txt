@@ -52,4 +52,11 @@ Assigns unique identifiers to each speaker
 
 4. statistics of both results 
 
-5. 
+5. add different ways of gravitas and orbital interactions of bodies within the canvas 
+
+6. map each particle properties like collision, or mass within 3d space.
+
+7. add music reactions , at best if gen ai spacial/analog synth tones , based on collision systems 
+	and interaction with other elements of the canvas. plus interactive subtly with mouse interactions
+
+	

@@ -76,8 +76,15 @@ class SpeakerManager:
 	def finalize_session(self):
 		"""Finalize the recording session and update statistics"""
 		if self.recording_session:
-			self.db_manager.update_recording_session_stats(self.recording_session.id)
-			console.print(f"[green]✓[/green] Finalized session: {self.recording_session.session_name}")
+			# Store the session ID and name before any database operations
+			session_id = self.recording_session.id
+			session_name = self.recording_session.session_name
+			
+			try:
+				self.db_manager.update_recording_session_stats(session_id)
+				console.print(f"[green]✓[/green] Finalized session: {session_name}")
+			except Exception as e:
+				console.print(f"[yellow]⚠️[/yellow] Warning: Could not update session stats: {e}")
 		
 	def close(self):
 		"""Clean up resources"""
@@ -336,6 +343,7 @@ def analyze_audio(audio_file, use_llm=True, expected_speakers=None):
 		return {
 			"utterances": results,
 			"status": "success",
+			"recording_session_id": recording_session.id,
 			"processing_summary": {
 				"total_utterances": len(transcript.utterances),
 				"processed": processed_count,
@@ -366,9 +374,9 @@ def analyze_audio(audio_file, use_llm=True, expected_speakers=None):
 		}
 		
 	finally:
-		# Always close the database connection
-		db_manager.close()
+		# Finalize the session stats BEFORE closing the database connection
 		speaker_manager.close()
+		db_manager.close()
 
 def _is_nonsensical_content(text: str) -> bool:
 	"""

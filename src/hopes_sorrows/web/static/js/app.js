@@ -1290,48 +1290,26 @@ class HopesSorrowsApp {
      * Populate analysis confirmation with actual data
      */
     populateAnalysisData(data) {
-        console.log('📊 Populating analysis data:', data);
-
-        // Extract analysis data
         const blobs = data.blobs || [];
         const summary = data.processing_summary || {};
-        
-        // Calculate statistics
-        const totalUtterances = blobs.length;
-        const uniqueEmotions = [...new Set(blobs.map(b => b.category))].length;
-        const avgConfidence = blobs.length > 0 ? 
-            Math.round(blobs.reduce((sum, b) => sum + (b.confidence || 0), 0) / blobs.length * 100) : 0;
-        
-        // Calculate recording duration (estimate based on processing time or use actual if available)
-        const recordingDuration = summary.recording_duration || 
-            Math.round((Date.now() - this.recordingStartTime) / 1000) || 
-            Math.min(44, Math.max(5, totalUtterances * 3)); // Fallback estimate
 
-        // Update statistics with staggered animations
-        const utterancesEl = document.getElementById('analysis-utterances');
-        const emotionsEl = document.getElementById('analysis-emotions');
-        const confidenceEl = document.getElementById('analysis-confidence');
-        const durationEl = document.getElementById('analysis-duration');
+        console.log("Populating analysis panel with data:", data);
 
-        setTimeout(() => {
-            if (utterancesEl) this.animateCounter(utterancesEl, 0, totalUtterances, 800);
-        }, 200);
+        // Calculate overall metrics
+        const utteranceCount = blobs.length;
+        const emotionCategories = [...new Set(blobs.map(b => b.category))];
+        const emotionCount = emotionCategories.length;
+        const avgConfidence = utteranceCount > 0 ? 
+            blobs.reduce((sum, b) => sum + (b.confidence || 0), 0) / utteranceCount : 0;
         
-        setTimeout(() => {
-            if (emotionsEl) this.animateCounter(emotionsEl, 0, uniqueEmotions, 800);
-        }, 400);
-        
-        setTimeout(() => {
-            if (confidenceEl) this.animateCounter(confidenceEl, 0, avgConfidence, 800, '%');
-        }, 600);
-        
-        setTimeout(() => {
-            if (durationEl) this.animateCounter(durationEl, 0, recordingDuration, 800, 's');
-        }, 800);
+        // --- Populate New Metrics ---
+        this.animateCounter(document.getElementById('analysis-utterances'), 0, utteranceCount, 1200);
+        this.animateCounter(document.getElementById('analysis-emotions'), 0, emotionCount, 1200);
+        this.animateCounter(document.getElementById('analysis-confidence'), 0, Math.round(avgConfidence * 100), 1200, '%');
 
-        // Populate emotion list with staggered animations
+        // --- Populate Emotion List ---
         const emotionListEl = document.getElementById('analysis-emotion-list');
-        if (emotionListEl && blobs.length > 0) {
+        if (emotionListEl && utteranceCount > 0) {
             const emotionCounts = {};
             blobs.forEach(blob => {
                 const category = blob.category || 'unknown';
@@ -1339,119 +1317,60 @@ class HopesSorrowsApp {
             });
 
             emotionListEl.innerHTML = Object.entries(emotionCounts)
+                .sort(([,a],[,b]) => b - a) // Sort by count descending
                 .map(([emotion, count]) => `
-                    <div class="analysis-emotion ${emotion}" style="opacity: 0; transform: translateY(10px);">
-                        <div class="analysis-emotion-dot"></div>
-                        <span>${emotion.charAt(0).toUpperCase() + emotion.slice(1)} (${count})</span>
+                    <div class="analysis-emotion-item ${emotion}">
+                        <div class="emotion-dot"></div>
+                        <span class="emotion-name">${emotion.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                        <span class="emotion-count">${count}</span>
                     </div>
                 `).join('');
-
-            // Animate emotion tags
-            const emotionTags = emotionListEl.querySelectorAll('.analysis-emotion');
-            if (typeof anime !== 'undefined') {
-                anime({
-                    targets: emotionTags,
-                    opacity: [0, 1],
-                    translateY: [10, 0],
-                    delay: anime.stagger(100, {start: 1000}),
-                    duration: 600,
-                    easing: 'easeOutCubic'
-                });
-            }
         }
-
-        // Add sentiment analysis overview if available
-        this.addSentimentOverview(blobs, summary);
-
-        console.log('✅ Analysis data populated');
-    }
-
-    /**
-     * Add sentiment analysis overview to the confirmation panel
-     */
-    addSentimentOverview(blobs, summary) {
-        // Find or create sentiment overview section
-        let sentimentSection = document.querySelector('.sentiment-overview');
-        if (!sentimentSection) {
-            const analysisContent = document.querySelector('.analysis-confirmation-content');
-            if (analysisContent) {
-                sentimentSection = document.createElement('div');
-                sentimentSection.className = 'sentiment-overview';
-                
-                // Insert before actions
-                const actionsEl = analysisContent.querySelector('.analysis-actions');
-                if (actionsEl) {
-                    analysisContent.insertBefore(sentimentSection, actionsEl);
-                } else {
-                    analysisContent.appendChild(sentimentSection);
-                }
-            }
-        }
-
-        if (sentimentSection && blobs.length > 0) {
-            // Calculate overall sentiment
-            const avgScore = blobs.reduce((sum, b) => sum + (b.score || 0), 0) / blobs.length;
-            const avgConfidence = blobs.reduce((sum, b) => sum + (b.confidence || 0), 0) / blobs.length;
-            
-            // Get sentiment label
-            let sentimentLabel = 'Neutral';
-            if (avgScore > 0.3) sentimentLabel = 'Positive';
-            else if (avgScore > 0.8) sentimentLabel = 'Very Positive';
-            else if (avgScore < -0.3) sentimentLabel = 'Negative';
-            else if (avgScore < -0.8) sentimentLabel = 'Very Negative';
-
-            // Create sentiment explanation
-            const explanation = this.generateSentimentExplanation(avgScore, sentimentLabel, blobs);
-
-            sentimentSection.innerHTML = `
-                <h4>🧠 Sentiment Analysis Overview</h4>
-                <div class="sentiment-summary">
-                    <div class="sentiment-score">
-                        <span class="sentiment-label">${sentimentLabel}</span>
-                        <span class="sentiment-value">${(avgScore * 100).toFixed(1)}%</span>
-                        <span class="sentiment-confidence">Confidence: ${(avgConfidence * 100).toFixed(0)}%</span>
-                    </div>
-                    <div class="sentiment-explanation">
-                        ${explanation}
-                    </div>
-                </div>
-            `;
-        }
-    }
-
-    /**
-     * Generate sentiment explanation based on analysis
-     */
-    generateSentimentExplanation(avgScore, label, blobs) {
-        const emotionCounts = {};
-        blobs.forEach(blob => {
-            const category = blob.category || 'unknown';
-            emotionCounts[category] = (emotionCounts[category] || 0) + 1;
-        });
-
-        const dominantEmotion = Object.entries(emotionCounts)
-            .sort(([,a], [,b]) => b - a)[0];
-
-        let explanation = `Your voice analysis reveals a ${label.toLowerCase()} emotional tone. `;
         
-        if (dominantEmotion) {
-            explanation += `The dominant emotion detected is ${dominantEmotion[0]}, appearing in ${dominantEmotion[1]} of ${blobs.length} segments. `;
+        // --- Populate Detailed Explanation ---
+        const explanationEl = document.getElementById('analysis-explanation');
+        if (explanationEl) {
+            explanationEl.innerHTML = this.generateDetailedExplanation(blobs, emotionCategories);
         }
-
-        if (avgScore > 0.5) {
-            explanation += "This suggests optimism, hope, and positive emotional energy in your expression.";
-        } else if (avgScore < -0.5) {
-            explanation += "This indicates deeper emotional processing, possibly involving challenges or sorrows that are being worked through.";
-        } else {
-            explanation += "This shows a balanced emotional state with mixed feelings being processed thoughtfully.";
-        }
-
-        return explanation;
     }
 
-    /**
-     * Animate counter with Anime.js
-     */
+    generateDetailedExplanation(blobs, emotionCategories) {
+        if (blobs.length === 0) {
+            return "<p>The analysis didn't find any distinct emotional segments in this recording. Try speaking for a bit longer and more clearly.</p>";
+        }
+
+        const primaryEmotion = emotionCategories[0] || 'neutral';
+        const totalScore = blobs.reduce((sum, b) => sum + b.score, 0);
+        const avgScore = totalScore / blobs.length;
+
+        let title = "A Moment of Reflection";
+        let body = "";
+
+        if (avgScore > 0.3) title = "A Journey of Hope";
+        else if (avgScore < -0.2) title = "A Story of Sorrow";
+        else if (emotionCategories.includes('ambivalent') || emotionCategories.includes('transformative')) {
+            title = "A Complex Emotional Landscape";
+        }
+
+        const hopeCount = blobs.filter(b => b.category === 'hope').length;
+        const sorrowCount = blobs.filter(b => b.category === 'sorrow').length;
+        const transformativeCount = blobs.filter(b => b.category === 'transformative').length;
+
+        if (transformativeCount > 0 && (hopeCount > 0 || sorrowCount > 0)) {
+            body = `Your voice carries a narrative of transformation, turning moments of ${sorrowCount > 0 ? 'sorrow' : 'reflection'} into newfound strength and hope. `;
+        } else if (hopeCount > sorrowCount) {
+            body = `A sense of optimism shines through your words. The analysis highlights themes of aspiration and resilience, suggesting a hopeful outlook. `;
+        } else if (sorrowCount > hopeCount) {
+            body = `The recording holds a tone of deep reflection, touching on challenges and moments of sorrow. This suggests a period of introspection and processing. `;
+        } else {
+            body = `Your expression appears balanced, containing a mix of different feelings without a single dominant theme. This points to a multifaceted emotional state. `;
+        }
+        
+        body += `The AI detected ${emotionCategories.length} distinct emotional states, indicating a rich and varied inner world during this brief recording.`;
+
+        return `<h4>${title}</h4><p>${body}</p>`;
+    }
+
     animateCounter(element, from, to, duration = 1000, suffix = '') {
         if (typeof anime !== 'undefined') {
             const obj = { value: from };
@@ -1553,7 +1472,7 @@ class HopesSorrowsApp {
             sorrow: document.getElementById('sorrow-count'),
             transformative: document.getElementById('transformative-count'),
             ambivalent: document.getElementById('ambivalent-count'),
-            reflective_neutral: document.getElementById('reflective-count')
+            reflective_neutral: document.getElementById('reflective-neutral-count')
         };
         
         Object.keys(categoryCounts).forEach(category => {

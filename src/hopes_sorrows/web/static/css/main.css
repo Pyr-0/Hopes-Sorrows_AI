@@ -2380,13 +2380,15 @@ h1, h2, h3, h4, h5, h6 {
     transition: var(--transition-normal);
 }
 
-.tab-btn.active {
-    color: var(--accent-primary);
-    border-bottom-color: var(--accent-primary);
+.tab-btn:hover {
+    border-color: var(--accent-primary);
+    color: var(--text-primary);
 }
 
-.tab-btn:hover {
-    color: var(--text-primary);
+.tab-btn.active {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    color: white;
 }
 
 .tab-content {
@@ -3439,3 +3441,211 @@ h1, h2, h3, h4, h5, h6 {
         gap: 1rem;
     }
 }
+
+/* ---------------------------------- */
+/* Analysis Confirmation Panel
+/* ---------------------------------- */
+
+.analysis-confirmation-panel {
+    position: fixed;
+    bottom: -100%; /* Start hidden below the screen */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 600px;
+    background: rgba(18, 38, 53, 0.85);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(102, 204, 179, 0.2);
+    border-radius: 20px 20px 0 0;
+    padding: 2rem;
+    color: #f0f0f0;
+    z-index: 1001;
+    transition: bottom 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.analysis-confirmation-panel.visible {
+    bottom: 0; /* Slide in from the bottom */
+}
+
+.analysis-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.analysis-header .sparkle-icon {
+    font-size: 2rem;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.analysis-header h2 {
+    font-size: 1.75rem;
+    color: #66ccb3; /* Aquamarine */
+    margin: 0;
+}
+
+.analysis-header p {
+    font-size: 1rem;
+    color: #b0c4de; /* Light Steel Blue */
+    margin-top: 0.25rem;
+}
+
+.analysis-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.metric-card {
+    background: rgba(10, 25, 35, 0.7);
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: center;
+    border: 1px solid rgba(102, 204, 179, 0.1);
+}
+
+.metric-card.main-metric {
+    grid-column: 1 / -1; /* Span full width */
+    padding: 1.5rem;
+    background: rgba(102, 204, 179, 0.1);
+}
+
+.metric-card .metric-icon {
+    font-size: 1.5rem;
+}
+
+.main-metric .metric-icon {
+    font-size: 2rem;
+}
+
+.metric-card .metric-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #fff;
+    margin: 0.25rem 0;
+}
+
+.main-metric .metric-value {
+    font-size: 3rem;
+}
+
+.metric-card .metric-label {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.metric-card .metric-sublabel {
+    font-size: 0.75rem;
+    color: #8a9eb5;
+}
+
+.analysis-summary-section {
+    background: rgba(10, 25, 35, 0.5);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.analysis-emotion-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.analysis-emotion-item {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.5rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+}
+
+.analysis-emotion-item .emotion-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 8px;
+    background-color: #ccc; /* Fallback */
+}
+
+/* Emotion-specific dot colors */
+.analysis-emotion-item.hope .emotion-dot { background-color: #34D399; }
+.analysis-emotion-item.sorrow .emotion-dot { background-color: #60A5FA; }
+.analysis-emotion-item.transformative .emotion-dot { background-color: #A78BFA; }
+.analysis-emotion-item.ambivalent .emotion-dot { background-color: #FBBF24; }
+.analysis-emotion-item.reflective_neutral .emotion-dot { background-color: #9CA3AF; }
+
+.analysis-emotion-item .emotion-name {
+    margin-right: 0.5rem;
+}
+
+.analysis-emotion-item .emotion-count {
+    color: #8a9eb5;
+    font-size: 0.8rem;
+}
+
+.analysis-explanation h4 {
+    color: #66ccb3;
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+}
+
+.analysis-explanation p {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: #b0c4de;
+    margin: 0;
+}
+
+.analysis-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+.analysis-actions .continue-btn,
+.analysis-actions .view-btn {
+    flex: 1;
+    padding: 1rem;
+    border-radius: 12px;
+    border: none;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.analysis-actions .continue-btn {
+    background-color: #2dd4bf; /* Teal */
+    color: #0d1a24;
+}
+
+.analysis-actions .continue-btn:hover {
+    background-color: #5eead4;
+    transform: translateY(-2px);
+}
+
+.analysis-actions .view-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: #f0f0f0;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.analysis-actions .view-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+
+/* ---------------------------------- */
+/* Blob Info Panel
+/* ---------------------------------- */

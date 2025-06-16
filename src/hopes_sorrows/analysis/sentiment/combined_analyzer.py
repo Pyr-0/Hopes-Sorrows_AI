@@ -58,7 +58,7 @@ class CombinedSentimentAnalyzer:
         if use_llm:
             try:
                 llm_result = analyze_sentiment_llm(
-                    text, speaker_id, context_window, verbose=False
+                    text, speaker_id, context_window, api_key=None, verbose=False
                 )
             except Exception as e:
                 if verbose:

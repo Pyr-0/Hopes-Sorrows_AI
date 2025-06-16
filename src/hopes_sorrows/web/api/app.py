@@ -163,22 +163,45 @@ def create_app():
     @app.route('/upload_audio', methods=['POST'])
     def upload_audio():
         """Handle audio file upload and process sentiment analysis."""
+        # Import datetime at the top to avoid issues
+        from datetime import datetime, timedelta
+        import time
+        
         try:
+            print("🎤 Starting audio upload processing...")
+            print(f"🔍 Request files: {list(request.files.keys())}")
+            print(f"🔍 Request form: {dict(request.form)}")
+            
             # Check for audio file - frontend sends 'audio', not 'audio_file'
             if 'audio' not in request.files:
+                print("❌ No audio file in request")
                 return jsonify({'success': False, 'error': 'No audio file provided'}), 400
             
             audio_file = request.files['audio']
             session_id = request.form.get('session_id', str(uuid.uuid4()))
+            print(f"📄 Processing audio file: {audio_file.filename}, session: {session_id}")
             
             # Save the audio file temporarily
             temp_dir = tempfile.mkdtemp()
             temp_filename = f"recording_{session_id}.wav"
             temp_filepath = os.path.join(temp_dir, temp_filename)
             audio_file.save(temp_filepath)
+            print(f"💾 Audio saved to: {temp_filepath}")
             
             # Process the audio with sentiment analysis
-            analysis_result = analyze_audio(temp_filepath, use_llm=True, expected_speakers=1)
+            print("🔄 Starting audio analysis...")
+            try:
+                analysis_result = analyze_audio(temp_filepath, use_llm=True, expected_speakers=1)
+                print(f"✅ Analysis complete with status: {analysis_result.get('status', 'unknown')}")
+            except Exception as analysis_error:
+                print(f"💥 Audio analysis failed: {analysis_error}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({
+                    'success': False,
+                    'error': f'Audio analysis failed: {str(analysis_error)}',
+                    'status': 'analysis_error'
+                }), 500
             
             # Clean up the temporary audio file
             try:
@@ -188,42 +211,201 @@ def create_app():
                 pass  # Don't fail if cleanup fails
             
             if analysis_result['status'] == 'success':
-                # Convert analysis result to blob data format
-                new_blobs = []
-                for utterance in analysis_result['utterances']:
-                    # Get transformer sentiment data and convert numpy types
-                    transformer_sentiment = convert_to_serializable(utterance['transformer_sentiment'])
+                print(f"🎉 Analysis successful! Processing {len(analysis_result['utterances'])} utterances")
+                
+                # Wait a moment for database to be fully written
+                time.sleep(0.5)
+
+                # Get the session_id from the analysis result for reliable fetching
+                db_session_id = analysis_result.get('recording_session_id')
+                
+                # Fetch fresh data from database using our own db_manager
+                try:
+                    if not db_session_id:
+                        raise ValueError("recording_session_id not found in analysis result, falling back to old method")
+
+                    print(f"🔍 Fetching transcriptions for specific session ID: {db_session_id}")
+                    speakers = db_manager.get_speakers_by_session(db_session_id)
+                    recent_transcriptions = []
+                    for speaker in speakers:
+                        recent_transcriptions.extend(speaker.transcriptions)
+
+                    print(f"📊 Found {len(recent_transcriptions)} transcriptions for session {db_session_id}")
+
+                    # If no transcriptions are found, it might be a timing issue.
+                    # Add a small delay and retry once.
+                    if not recent_transcriptions:
+                        print("⚠️ No transcriptions found on first attempt, retrying after a short delay...")
+                        time.sleep(0.75)
+                        speakers = db_manager.get_speakers_by_session(db_session_id)
+                        for speaker in speakers:
+                            recent_transcriptions.extend(speaker.transcriptions)
+                        print(f"📊 Found {len(recent_transcriptions)} transcriptions on second attempt.")
+
+                    new_blobs = []
+                    for i, transcription in enumerate(recent_transcriptions):
+                        print(f"🔍 Processing transcription {i+1}/{len(recent_transcriptions)}: ID {transcription.id}")
+                        
+                        try:
+                            # Get the primary analysis for this transcription
+                            primary_analysis = None
+                            print(f"🔍 Transcription has {len(transcription.sentiment_analyses)} sentiment analyses")
+                            
+                            for analysis in transcription.sentiment_analyses:
+                                print(f"🔍 - Analysis: {analysis.analyzer_type.value} -> {analysis.category}")
+                                if analysis.analyzer_type == AnalyzerType.TRANSFORMER:
+                                    primary_analysis = analysis
+                                    break
+                            
+                            if primary_analysis:
+                                # Safely access speaker information with error handling
+                                speaker_name = "Unknown"
+                                global_sequence = 0
+                                
+                                try:
+                                    if transcription.speaker:
+                                        speaker_name = transcription.speaker.display_name
+                                        global_sequence = transcription.speaker.global_sequence
+                                except Exception as speaker_error:
+                                    print(f"⚠️ Speaker access error: {speaker_error}")
+                                    # Try to get speaker by ID directly
+                                    try:
+                                        speaker = db_manager.get_speaker_by_id(transcription.speaker_id)
+                                        if speaker:
+                                            speaker_name = speaker.display_name
+                                            global_sequence = speaker.global_sequence
+                                    except Exception as speaker_fetch_error:
+                                        print(f"⚠️ Speaker fetch error: {speaker_fetch_error}")
+                                
+                                blob_data = {
+                                    'id': f"blob_{transcription.id}",
+                                    'speaker_id': transcription.speaker_id,
+                                    'speaker_name': speaker_name,
+                                    'global_sequence': global_sequence,
+                                    'text': transcription.text,
+                                    'category': primary_analysis.category,
+                                    'score': convert_to_serializable(primary_analysis.score),
+                                    'confidence': convert_to_serializable(primary_analysis.confidence),
+                                    'intensity': convert_to_serializable(abs(primary_analysis.score)),
+                                    'label': primary_analysis.label,
+                                    'explanation': primary_analysis.explanation,
+                                    'created_at': transcription.created_at.isoformat() if transcription.created_at else datetime.now().isoformat(),
+                                    'has_llm': False,  # We're using combined analysis stored as transformer
+                                    'analysis_source': 'combined'
+                                }
+                                new_blobs.append(blob_data)
+                                print(f"✅ Created blob with category: {blob_data['category']}")
+                        except Exception as blob_creation_error:
+                            print(f"💥 Error creating blob for transcription {transcription.id}: {blob_creation_error}")
+                            continue
                     
-                    blob_data = {
-                        'id': f"blob_{utterance.get('speaker_id', session_id)}_{len(new_blobs)}",
-                        'speaker_id': utterance.get('speaker_id', session_id),
-                        'speaker_name': utterance.get('speaker', 'Unknown'),
-                        'global_sequence': utterance.get('global_sequence', 0),
-                        'text': utterance['text'],
-                        'category': transformer_sentiment['category'],
-                        'score': transformer_sentiment['score'],
-                        'confidence': transformer_sentiment['confidence'],
-                        'intensity': transformer_sentiment['intensity'],
-                        'label': transformer_sentiment['label'],
-                        'explanation': transformer_sentiment.get('explanation', ''),
-                        'created_at': datetime.now().isoformat(),
-                        'has_llm': utterance['llm_sentiment'] is not None
-                    }
-                    new_blobs.append(blob_data)
-                
-                # Emit the new blobs to all connected clients via WebSocket
-                for blob_data in new_blobs:
-                    # Add session_id to blob data for frontend filtering
-                    blob_data['session_id'] = session_id
-                    socketio.emit('blob_added', blob_data)
-                
-                return jsonify({
-                    'success': True,
-                    'blobs': new_blobs,
-                    'processing_summary': analysis_result.get('processing_summary', {}),
-                    'session_id': session_id
-                })
+                    print(f"📡 Emitting {len(new_blobs)} new blobs via WebSocket")
+                    
+                    # Emit the new blobs to all connected clients via WebSocket
+                    for blob_data in new_blobs:
+                        # Add session_id to blob data for frontend filtering
+                        blob_data['session_id'] = session_id
+                        socketio.emit('blob_added', blob_data)
+                    
+                    print("🎉 Upload processing complete - returning success response")
+                    return jsonify({
+                        'success': True,
+                        'blobs': new_blobs,
+                        'processing_summary': analysis_result.get('processing_summary', {}),
+                        'session_id': session_id
+                    })
+                    
+                except Exception as db_error:
+                    print(f"💥 Database fetch error using session ID: {db_error}")
+                    import traceback
+                    traceback.print_exc() # Print full traceback for debugging
+                    print("Falling back to time-based fetch.")
+                    
+                    # Fallback to the old time-based method if session ID fails
+                    from datetime import datetime, timedelta
+                    recent_time = datetime.now() - timedelta(seconds=20) # Increased window
+                    all_transcriptions = db_manager.get_all_transcriptions()
+                    recent_transcriptions = [
+                        t for t in all_transcriptions 
+                        if t.created_at and t.created_at >= recent_time
+                    ]
+                    print(f"🔍 Fallback found {len(recent_transcriptions)} recent transcriptions")
+
+                    # [ Duplicated blob creation logic for fallback - can be refactored later ]
+                    new_blobs = []
+                    for i, transcription in enumerate(recent_transcriptions):
+                        print(f"🔍 Processing transcription {i+1}/{len(recent_transcriptions)}: ID {transcription.id}")
+                        
+                        try:
+                            # Get the primary analysis for this transcription
+                            primary_analysis = None
+                            print(f"🔍 Transcription has {len(transcription.sentiment_analyses)} sentiment analyses")
+                            
+                            for analysis in transcription.sentiment_analyses:
+                                print(f"🔍 - Analysis: {analysis.analyzer_type.value} -> {analysis.category}")
+                                if analysis.analyzer_type == AnalyzerType.TRANSFORMER:
+                                    primary_analysis = analysis
+                                    break
+                            
+                            if primary_analysis:
+                                # Safely access speaker information with error handling
+                                speaker_name = "Unknown"
+                                global_sequence = 0
+                                
+                                try:
+                                    if transcription.speaker:
+                                        speaker_name = transcription.speaker.display_name
+                                        global_sequence = transcription.speaker.global_sequence
+                                except Exception as speaker_error:
+                                    print(f"⚠️ Speaker access error: {speaker_error}")
+                                    # Try to get speaker by ID directly
+                                    try:
+                                        speaker = db_manager.get_speaker_by_id(transcription.speaker_id)
+                                        if speaker:
+                                            speaker_name = speaker.display_name
+                                            global_sequence = speaker.global_sequence
+                                    except Exception as speaker_fetch_error:
+                                        print(f"⚠️ Speaker fetch error: {speaker_fetch_error}")
+                                
+                                blob_data = {
+                                    'id': f"blob_{transcription.id}",
+                                    'speaker_id': transcription.speaker_id,
+                                    'speaker_name': speaker_name,
+                                    'global_sequence': global_sequence,
+                                    'text': transcription.text,
+                                    'category': primary_analysis.category,
+                                    'score': convert_to_serializable(primary_analysis.score),
+                                    'confidence': convert_to_serializable(primary_analysis.confidence),
+                                    'intensity': convert_to_serializable(abs(primary_analysis.score)),
+                                    'label': primary_analysis.label,
+                                    'explanation': primary_analysis.explanation,
+                                    'created_at': transcription.created_at.isoformat() if transcription.created_at else datetime.now().isoformat(),
+                                    'has_llm': False,  # We're using combined analysis stored as transformer
+                                    'analysis_source': 'combined'
+                                }
+                                new_blobs.append(blob_data)
+                                print(f"✅ Created blob with category: {blob_data['category']}")
+                        except Exception as blob_creation_error:
+                            print(f"💥 Error creating blob for transcription {transcription.id}: {blob_creation_error}")
+                            continue
+
+                    print(f"📡 Emitting {len(new_blobs)} new blobs via WebSocket (from fallback)")
+                    
+                    # Emit the new blobs to all connected clients via WebSocket
+                    for blob_data in new_blobs:
+                        # Add session_id to blob data for frontend filtering
+                        blob_data['session_id'] = session_id
+                        socketio.emit('blob_added', blob_data)
+                    
+                    return jsonify({
+                        'success': True,
+                        'blobs': new_blobs,
+                        'processing_summary': analysis_result.get('processing_summary', {}),
+                        'session_id': session_id
+                    })
             else:
+                print(f"❌ Analysis failed with status: {analysis_result['status']}")
+                print(f"❌ Error: {analysis_result.get('error', 'Unknown error')}")
                 return jsonify({
                     'success': False,
                     'error': analysis_result.get('error', 'Analysis failed'),
@@ -232,9 +414,32 @@ def create_app():
                 }), 400
                 
         except Exception as e:
+            print(f"💥 Exception in upload_audio: {e}")
+            print(f"💥 Exception type: {type(e).__name__}")
+            import traceback
+            error_traceback = traceback.format_exc()
+            print(f"💥 Full traceback:\n{error_traceback}")
+            
+            # Force flush output
+            import sys
+            sys.stdout.flush()
+            sys.stderr.flush()
+            
+            # Log to file as well
+            try:
+                with open('upload_error.log', 'a') as f:
+                    f.write(f"\n=== ERROR at {datetime.now()} ===\n")
+                    f.write(f"Exception: {e}\n")
+                    f.write(f"Type: {type(e).__name__}\n")
+                    f.write(f"Traceback:\n{error_traceback}\n")
+                    f.write("=" * 50 + "\n")
+            except:
+                pass
+            
             return jsonify({
                 'success': False,
-                'error': str(e)
+                'error': str(e),
+                'error_type': type(e).__name__
             }), 500
 
     @app.route('/api/clear_visualization')
