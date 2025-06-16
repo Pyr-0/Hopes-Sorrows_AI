@@ -1,12 +1,17 @@
 from dotenv import load_dotenv
 import os
 import assemblyai as aai
-import sounddevice as sd
-from scipy.io.wavfile import write
+# Audio recording libraries only needed for CLI recording, not web app
+try:
+    import sounddevice as sd
+    from scipy.io.wavfile import write
+    AUDIO_RECORDING_AVAILABLE = True
+except ImportError:
+    AUDIO_RECORDING_AVAILABLE = False
+    # This is fine - web app uses browser recording, CLI can use file upload
 import sys
 import os
 from datetime import datetime
-from sentiment_analysis.cli_formatter import format_sentiment_result, format_batch_results, format_error
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -15,18 +20,20 @@ from rich import box
 # Fix the fork warning
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-# Add the project root to Python path to import the sentiment analyzers
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(os.path.dirname(current_dir))
-sys.path.append(project_root)
+# Use relative imports for the new package structure
+from ...analysis.sentiment.cli_formatter import format_sentiment_result, format_batch_results, format_error
+from ...analysis.sentiment.sa_transformers import analyze_sentiment as analyze_sentiment_transformer
+from ...analysis.sentiment.sa_LLM import analyze_sentiment as analyze_sentiment_llm
+from ...data.db_manager import DatabaseManager
+from ...data.models import AnalyzerType
+from ...core.config import get_config
 
-from sentiment_analysis.sa_transformers import analyze_sentiment as analyze_sentiment_transformer
-from sentiment_analysis.sa_LLM import analyze_sentiment as analyze_sentiment_llm
-from database import DatabaseManager, AnalyzerType
+# Load configuration
+config = get_config()
+dotenv_path = config.get_dotenv_path()
+load_dotenv(dotenv_path)
 
-load_dotenv()
-
-API = os.getenv("API_KEY_ASSEMBLY")
+API = os.getenv("ASSEMBLYAI_API_KEY")
 
 console = Console()
 
@@ -70,8 +77,13 @@ class SpeakerManager:
 
 def record(duration=65, filename=None):
 	"""Record audio with timestamp in filename"""
-	# Create recordings directory if it doesn't exist
-	recordings_dir = os.path.join(os.path.dirname(__file__), "recordings")
+	if not AUDIO_RECORDING_AVAILABLE:
+		raise RuntimeError("Audio recording not available. Please install PyAudio: pip install pyaudio")
+	
+	# Create recordings directory in the centralized data directory
+	from ...core.config import get_config
+	config = get_config()
+	recordings_dir = config.get_recordings_path()
 	os.makedirs(recordings_dir, exist_ok=True)
 		
 	if filename is None:

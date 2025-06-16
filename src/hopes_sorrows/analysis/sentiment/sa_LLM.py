@@ -7,8 +7,12 @@ from typing import Dict, Optional, List
 from .advanced_classifier import AdvancedHopeSorrowClassifier, EmotionCategory, ClassificationResult
 from .cli_formatter import format_sentiment_result, format_error
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables using centralized config
+from ...core.config import get_config
+
+config = get_config()
+dotenv_path = config.get_dotenv_path()
+load_dotenv(dotenv_path)
 
 class SentimentLabel(Enum):
 	VERY_POSITIVE = "very_positive"

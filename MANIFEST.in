@@ -1,0 +1,43 @@
+# Include documentation
+include README.md
+include LICENSE
+include CHANGELOG.md
+include Makefile
+include env.template
+
+# Include requirements
+include requirements.txt
+include requirements-dev.txt
+
+# Include configuration files
+recursive-include config *.py *.yaml *.yml *.json
+
+# Include web assets
+recursive-include src/hopes_sorrows/web/static *
+recursive-include src/hopes_sorrows/web/templates *
+
+# Include documentation
+recursive-include docs *.md *.rst *.txt *.html *.css *.js *.png *.jpg *.gif
+
+# Include scripts
+recursive-include scripts *.py *.sh
+
+# Include tests
+recursive-include tests *.py *.json *.yaml *.yml
+
+# Exclude compiled files and cache
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude *.egg-info/*
+global-exclude __pycache__/*
+global-exclude .DS_Store
+global-exclude *.db
+global-exclude *.sqlite
+global-exclude *.sqlite3
+
+# Exclude development files
+exclude .gitignore
+exclude .flake8
+exclude .mypy.ini
+exclude pytest.ini
+exclude tox.ini 

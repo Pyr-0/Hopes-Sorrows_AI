@@ -48,35 +48,58 @@ cd AI/Final_Project
 pip3 install -r requirements.txt
 ```
 
-### 3. Environment Setup
+### 3. Complete Setup
 
-Create a `.env` file in the project root:
-
-```bash
-# Required: AssemblyAI API key for speech transcription
-ASSEMBLYAI_API_KEY=your_assemblyai_api_key_here
-
-# Optional: OpenAI API key for enhanced LLM analysis
-OPENAI_API_KEY=your_openai_api_key_here
-```
-
-**Get your free AssemblyAI API key**: [https://www.assemblyai.com/](https://www.assemblyai.com/)
-
-### 4. Initialize Database
+Use the automated setup:
 
 ```bash
-python3 -c "from database.db_manager import DatabaseManager; DatabaseManager().init_db()"
+make setup
 ```
 
-### 5. Launch the Application
+Or manual setup:
 
 ```bash
-python3 -m flask --app webui.app run --debug --host=0.0.0.0 --port=5000
+# Copy environment template
+cp env.template .env
+# Edit .env with your API keys
+
+# Install dependencies  
+make install
+
+# Initialize database
+make setup-db
 ```
 
-### 6. Open in Browser
+**Required API Keys:**
 
-Navigate to: `http://localhost:5000`
+1. **AssemblyAI API Key** (Required for audio transcription):
+   - Sign up at [https://www.assemblyai.com/](https://www.assemblyai.com/)
+   - Get your free API key from the dashboard
+   - Add to `.env`: `ASSEMBLYAI_API_KEY=your_key_here`
+
+2. **OpenAI API Key** (Optional for enhanced LLM analysis):
+   - Sign up at [https://platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+   - Get your API key (requires payment setup)
+   - Add to `.env`: `OPENAI_API_KEY=your_key_here`
+
+**⚠️ Note**: Without the AssemblyAI API key, audio recording features won't work, but text-based sentiment analysis will still function perfectly.
+
+### 4. Launch the Application
+
+```bash
+# Using make (recommended)
+make run-web
+
+# Or using main entry point
+python3 main.py web
+
+# Or using direct script
+python3 scripts/run_web.py
+```
+
+### 5. Open in Browser
+
+Navigate to: `http://localhost:8080`
 
 ## 🎮 How to Use
 
@@ -93,34 +116,32 @@ Navigate to: `http://localhost:5000`
 ## 🏗️ Project Architecture
 
 ```
-AI/Final_Project/
-├── webui/                          # Web application
-│   ├── app.py                      # Flask server & API endpoints
-│   ├── templates/                  # HTML templates
-│   │   ├── landing.html           # Landing page
-│   │   ├── app.html               # Main application
-│   │   ├── stats.html             # Analytics dashboard
-│   │   ├── info.html              # Information page
-│   │   └── diagnostic.html        # System diagnostics
-│   └── static/                     # Frontend assets
-│       ├── css/main.css           # Styling
-│       └── js/                    # JavaScript modules
-│           ├── app.js             # Main application logic
-│           ├── emotion-visualizer.js  # Background visualization
-│           ├── blob-visualizer.js     # Emotion blob system
-│           ├── audio-recorder.js      # Recording functionality
-│           └── stats.js               # Analytics
-├── sentiment_analysis/             # AI Analysis engines
-│   ├── sa_transformers.py         # Transformer-based analysis
-│   ├── sa_LLM.py                  # LLM-based analysis
-│   └── advanced_classifier.py     # Enhanced classification
-├── audio_analysis/                # Audio processing
-│   └── assembyai.py               # Speech-to-text & analysis
-├── database/                      # Data persistence
-│   ├── models.py                  # Database schema
-│   └── db_manager.py              # Database operations
-└── requirements.txt               # Python dependencies
+hopes-sorrows/
+├── 📁 src/hopes_sorrows/           # Main source code (Python package)
+│   ├── 📁 core/                    # Core utilities and configuration
+│   ├── 📁 analysis/                # AI analysis modules
+│   │   ├── 📁 sentiment/           # Sentiment analysis components
+│   │   └── 📁 audio/               # Audio processing components
+│   ├── 📁 data/                    # Data models and database management
+│   ├── 📁 web/                     # Web application
+│   │   ├── 📁 api/                 # Flask API endpoints
+│   │   ├── 📁 static/              # CSS, JS, images
+│   │   └── 📁 templates/           # HTML templates
+│   └── 📁 cli/                     # Command-line interface
+├── 📁 data/                        # Application data (gitignored)
+│   ├── 📁 databases/               # SQLite databases
+│   ├── 📁 recordings/              # Audio recordings
+│   └── 📁 uploads/                 # File uploads
+├── 📁 scripts/                     # Standalone scripts and utilities
+├── 📁 tests/                       # Test suites
+├── 📁 docs/                        # Documentation
+├── 📄 main.py                      # Main entry point
+├── 📄 setup.py                     # Package installation script
+├── 📄 Makefile                     # Development automation
+└── 📄 requirements.txt             # Python dependencies
 ```
+
+**📖 See [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) for detailed structure documentation.**
 
 ## 🔧 Technology Stack
 
@@ -150,12 +171,10 @@ AI/Final_Project/
 
 ## 📚 Documentation
 
-For detailed technical documentation, development reports, and internal guides, see the [`docs/`](docs/) directory:
+For detailed technical documentation and comprehensive guides, see the [`docs/`](docs/) directory:
 
+- **[Documentation Index](docs/README.md)** - Complete documentation overview and navigation guide
 - **[Technical Glossary](docs/GLOSSARY.md)** - Comprehensive guide to all terminology and concepts
-- **[Development Reports](docs/development/)** - Technical implementation details and bug fixes
-- **[Internal Guides](docs/internal/)** - Edge case handling and troubleshooting
-- **[Documentation Index](docs/README.md)** - Complete documentation overview
 
 ## 🗄️ Database Schema
 
@@ -214,7 +233,11 @@ For detailed technical documentation, development reports, and internal guides, 
 ### Running in Development Mode
 
 ```bash
-python3 -m flask --app webui.app run --debug --host=0.0.0.0 --port=5000
+# Use the dedicated script (port 8080)
+python3 scripts/run_web.py
+
+# Or use the main entry point
+python3 main.py web
 ```
 
 ### Environment Variables
@@ -261,7 +284,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **"python command not found"**
 ```bash
 # Use python3 instead
-python3 -m flask --app webui.app run --debug --host=0.0.0.0 --port=5000
+python3 scripts/run_web.py
 ```
 
 **Microphone not working**

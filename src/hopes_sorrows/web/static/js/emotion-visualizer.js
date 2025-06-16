@@ -294,4 +294,5 @@ class EmotionVisualizer {
 }
 
 // Make available globally
-window.IntegratedEmotionVisualizer = IntegratedEmotionVisualizer;window.IntegratedEmotionVisualizer = IntegratedEmotionVisualizer;
+window.EmotionVisualizer = EmotionVisualizer;
+window.IntegratedEmotionVisualizer = EmotionVisualizer; // Legacy alias for compatibility
