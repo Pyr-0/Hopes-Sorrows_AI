@@ -338,13 +338,23 @@ class AudioRecorder {
                 // Success - let the main app handle the analysis completion
                 console.log('✅ Audio processed successfully, notifying main app');
                 
+                // Hide processing panel first
+                if (this.processingPanel) {
+                    this.processingPanel.classList.remove('active');
+                }
+                
                 // Notify the main app about the analysis completion
                 if (window.hopesSorrowsApp && window.hopesSorrowsApp.handleAnalysisComplete) {
                     window.hopesSorrowsApp.handleAnalysisComplete(result);
+                } else {
+                    console.warn('⚠️ Main app not available, showing fallback success message');
+                    this.showSuccessFallback(result);
                 }
                 
-                // Reset UI state
-                this.resetToInitialState();
+                // Reset UI state after a short delay to let analysis panel show
+                setTimeout(() => {
+                    this.resetToInitialState();
+                }, 1000);
                 
                 // Generate new session ID for next recording
                 this.sessionId = this.generateSessionId();
@@ -417,6 +427,53 @@ class AudioRecorder {
         ];
         
         return types.find(type => MediaRecorder.isTypeSupported(type)) || 'audio/wav';
+    }
+    
+    showSuccessFallback(result) {
+        // Create a success notification when main app isn't available
+        const notification = document.createElement('div');
+        notification.className = 'success-notification';
+        notification.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(76, 175, 80, 0.95);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 10000;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        `;
+        
+        const blobCount = result.blobs ? result.blobs.length : 0;
+        notification.innerHTML = `
+            <div style="font-size: 24px; margin-bottom: 15px;">✅ Recording Processed!</div>
+            <div style="font-size: 16px; margin-bottom: 20px;">
+                ${blobCount} emotion${blobCount !== 1 ? 's' : ''} analyzed and ready to view
+            </div>
+            <button onclick="this.parentElement.remove()" style="
+                background: rgba(255, 255, 255, 0.2);
+                color: white;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                padding: 10px 20px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 14px;
+            ">Continue</button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 4 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 4000);
     }
     
     generateSessionId() {

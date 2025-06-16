@@ -100,7 +100,11 @@ def create_app():
                 transformer_analysis = None
                 llm_analysis = None
                 
+                # Debug: show all analyses for this transcription
+                print(f"DEBUG: Transcription {transcription.id} has {len(transcription.sentiment_analyses)} analyses")
+                
                 for analysis in transcription.sentiment_analyses:
+                    print(f"DEBUG: - Analysis {analysis.id}: {analysis.analyzer_type.value} -> {analysis.category}")
                     if analysis.analyzer_type == AnalyzerType.TRANSFORMER:
                         transformer_analysis = analysis
                     elif analysis.analyzer_type == AnalyzerType.LLM:
@@ -128,12 +132,20 @@ def create_app():
                             'analysis_source': 'transformer' if transformer_analysis else 'llm'
                         }
                         blobs_data.append(blob_data)
+                        print(f"DEBUG: Created blob {blob_data['id']} with category {blob_data['category']}")
                     except Exception as e:
                         print(f"DEBUG: Error creating blob for transcription {transcription.id}: {e}")
                 else:
                     print(f"DEBUG: Transcription {transcription.id} has no sentiment analysis - skipping")
             
-            print(f"DEBUG: Created {len(blobs_data)} blobs")
+            print(f"DEBUG: Created {len(blobs_data)} blobs total")
+            
+            # Debug: count by category
+            category_counts = {}
+            for blob in blobs_data:
+                category = blob['category']
+                category_counts[category] = category_counts.get(category, 0) + 1
+            print(f"DEBUG: Category distribution: {category_counts}")
             
             return jsonify({
                 'success': True,
@@ -201,6 +213,8 @@ def create_app():
                 
                 # Emit the new blobs to all connected clients via WebSocket
                 for blob_data in new_blobs:
+                    # Add session_id to blob data for frontend filtering
+                    blob_data['session_id'] = session_id
                     socketio.emit('blob_added', blob_data)
                 
                 return jsonify({

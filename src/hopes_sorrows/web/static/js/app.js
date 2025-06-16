@@ -143,7 +143,7 @@ class HopesSorrowsApp {
             errorPanel: document.querySelector('.error-panel'),
             blobInfoPanel: document.getElementById('blob-info-panel'),
             blobInfoToggle: document.getElementById('blob-info-toggle'),
-            analysisConfirmation: document.querySelector('.analysis-confirmation'),
+            analysisConfirmation: document.querySelector('.analysis-confirmation') || document.getElementById('analysis-confirmation'),
             
             // Loading
             loadingOverlay: document.querySelector('.loading-overlay'),
@@ -172,60 +172,68 @@ class HopesSorrowsApp {
      * Initialize WebSocket connection
      */
     async initializeSocket() {
-        return new Promise((resolve, reject) => {
-            console.log('🔌 Initializing WebSocket connection...');
-            
-            try {
-                // Check if Socket.IO is available
-                if (typeof io === 'undefined') {
-                    console.warn('⚠️ Socket.IO not available, skipping WebSocket connection');
-                    resolve(); // Continue without WebSocket
-                    return;
-                }
-                
-                this.socket = io({
-                    timeout: 3000,
-                    forceNew: true
-                });
+        console.log('🔌 Initializing WebSocket connection...');
+        
+        try {
+            if (typeof io !== 'undefined') {
+                this.socket = io();
                 
                 this.socket.on('connect', () => {
-                    console.log('✅ WebSocket connected');
-                    resolve();
+                    console.log('✅ Connected to server via WebSocket');
                 });
                 
                 this.socket.on('disconnect', () => {
-                    console.log('🔌 WebSocket disconnected');
+                    console.log('❌ Disconnected from server');
                 });
                 
-                this.socket.on('analysis_complete', (data) => {
-                    console.log('📊 Analysis complete:', data);
-                    this.handleAnalysisComplete(data);
+                this.socket.on('connected', (data) => {
+                    console.log('🎉 Server connection confirmed:', data);
                 });
                 
-                this.socket.on('error', (error) => {
-                    console.error('❌ WebSocket error:', error);
-                    // Don't reject on error, just continue without WebSocket
-                    resolve();
-                });
-                
-                this.socket.on('connect_error', (error) => {
-                    console.warn('⚠️ WebSocket connection error:', error);
-                    resolve(); // Continue without WebSocket
-                });
-                
-                // Set timeout for connection
-                setTimeout(() => {
-                    if (!this.socket || !this.socket.connected) {
-                        console.warn('⚠️ WebSocket connection timeout, continuing without real-time features');
-                        resolve(); // Continue without WebSocket
+                // ENHANCED: Handle blob_added events for real-time updates
+                this.socket.on('blob_added', (blobData) => {
+                    console.log('🫧 Real-time blob received:', blobData);
+                    
+                    // Only add if this isn't from our own session (to avoid duplicates)
+                    if (blobData.session_id !== this.sessionId) {
+                        console.log('🫧 Adding blob from another session');
+                        if (this.emotionVisualizer) {
+                            this.emotionVisualizer.addBlob(blobData);
+                            this.updateBlobStats();
+                        }
+                    } else {
+                        console.log('🫧 Ignoring blob from own session (already handled)');
                     }
-                }, 3000); // Reduced timeout
+                });
                 
-            } catch (error) {
-                console.error('❌ WebSocket initialization failed:', error);
-                resolve(); // Continue without WebSocket instead of rejecting
+                this.socket.on('blob_removed', (data) => {
+                    console.log('🗑️ Blob removed:', data);
+                    // Handle blob removal if needed
+                });
+                
+                this.socket.on('visualization_cleared', () => {
+                    console.log('🧹 Visualization cleared by another client');
+                    if (this.emotionVisualizer) {
+                        this.emotionVisualizer.clearAllBlobs();
+                        this.updateBlobStats();
+                    }
+                });
+                
+                // ENHANCED: Handle recording progress from other clients
+                this.socket.on('recording_progress', (data) => {
+                    if (data.sessionId !== this.sessionId) {
+                        console.log('🎤 Another client is recording:', data);
+                        // Could add visual indicator that someone else is recording
+                    }
+                });
+                
+                console.log('✅ WebSocket event handlers registered');
+            } else {
+                console.error('❌ Socket.IO not available');
             }
-        });
+        } catch (error) {
+            console.error('❌ Failed to initialize WebSocket:', error);
+        }
     }
     
     /**
@@ -890,7 +898,7 @@ class HopesSorrowsApp {
                 }
             });
         }
-        }
+    }
 
     /**
      * Create subtle screen flash effect
@@ -1119,18 +1127,37 @@ class HopesSorrowsApp {
      * Show/hide analysis confirmation
      */
     showAnalysisConfirmation(data) {
+        console.log('📊 Attempting to show analysis confirmation with data:', data);
+        
+        // Ensure the element exists
         if (!this.elements.analysisConfirmation) {
-            console.error('❌ Analysis confirmation element not found');
-            return;
+            console.error('❌ Analysis confirmation element not found in this.elements');
+            // Try to find it directly
+            this.elements.analysisConfirmation = document.getElementById('analysis-confirmation');
+            if (!this.elements.analysisConfirmation) {
+                console.error('❌ Analysis confirmation element not found in DOM');
+                // Create a fallback notification
+                this.showAnalysisCompleteFallback(data);
+                return;
+            }
         }
 
-        // Prevent duplicate panels
+        // Prevent duplicate panels - but reset if stuck
         if (this.elements.analysisConfirmation.classList.contains('visible')) {
-            console.log('⚠️ Analysis confirmation already visible, skipping');
-            return;
+            console.log('⚠️ Analysis confirmation already visible');
+            // Check if it's been visible for too long (stuck state)
+            const visibleTime = Date.now() - (this.lastAnalysisShown || 0);
+            if (visibleTime < 2000) { // Less than 2 seconds ago
+                console.log('⚠️ Recently shown, skipping to prevent spam');
+                return;
+            } else {
+                console.log('⚠️ Clearing stuck analysis confirmation');
+                this.hideAnalysisConfirmation();
+            }
         }
 
         console.log('📊 Showing analysis confirmation with data:', data);
+        this.lastAnalysisShown = Date.now();
 
         // Populate analysis data
         this.populateAnalysisData(data);
@@ -1192,16 +1219,71 @@ class HopesSorrowsApp {
         
         // Animate panel entrance
         if (typeof anime !== 'undefined') {
-            anime({
-                targets: this.elements.analysisConfirmation.querySelector('.analysis-confirmation-content'),
-                scale: [0.8, 1],
-                opacity: [0, 1],
-                duration: 800,
-                easing: 'easeOutElastic(1, .8)'
-            });
+            const content = this.elements.analysisConfirmation.querySelector('.analysis-confirmation-content');
+            if (content) {
+                anime({
+                    targets: content,
+                    scale: [0.8, 1],
+                    opacity: [0, 1],
+                    duration: 800,
+                    easing: 'easeOutElastic(1, .8)'
+                });
+            }
         }
         
         console.log('📊 Analysis confirmation shown with animations');
+    }
+    
+    /**
+     * Fallback notification when analysis confirmation panel fails
+     */
+    showAnalysisCompleteFallback(data) {
+        console.log('📊 Showing fallback analysis complete notification');
+        
+        // Create a simple notification
+        const notification = document.createElement('div');
+        notification.className = 'analysis-complete-notification';
+        notification.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 10000;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        `;
+        
+        const blobCount = data.blobs ? data.blobs.length : 0;
+        notification.innerHTML = `
+            <div style="font-size: 24px; margin-bottom: 15px;">✨ Analysis Complete!</div>
+            <div style="font-size: 16px; margin-bottom: 20px;">
+                ${blobCount} emotion${blobCount !== 1 ? 's' : ''} captured and added to your landscape
+            </div>
+            <button onclick="this.parentElement.remove()" style="
+                background: #4CAF50;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 14px;
+            ">Continue</button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 5000);
     }
     
     /**

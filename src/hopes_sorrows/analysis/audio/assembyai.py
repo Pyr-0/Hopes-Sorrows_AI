@@ -24,6 +24,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 from ...analysis.sentiment.cli_formatter import format_sentiment_result, format_batch_results, format_error
 from ...analysis.sentiment.sa_transformers import analyze_sentiment as analyze_sentiment_transformer
 from ...analysis.sentiment.sa_LLM import analyze_sentiment as analyze_sentiment_llm
+from ...analysis.sentiment.combined_analyzer import analyze_sentiment_combined
 from ...data.db_manager import DatabaseManager
 from ...data.models import AnalyzerType
 from ...core.config import get_config
@@ -123,8 +124,9 @@ def analyze_audio(audio_file, use_llm=True, expected_speakers=None):
 	"""
 	aai.settings.api_key = API
 		
-	# Initialize database manager
-	db_manager = DatabaseManager()
+	# Initialize database manager with correct path
+	config = get_config()
+	db_manager = DatabaseManager(config.get_database_url())
 	speaker_manager = SpeakerManager(db_manager)
 	
 	# Create recording session
@@ -274,46 +276,44 @@ def analyze_audio(audio_file, use_llm=True, expected_speakers=None):
 			)
 			console.print(f"[blue]💾[/blue] Stored transcription for {speaker.display_name}: {text[:50]}...")
 			
-			# ENHANCED: Perform sentiment analysis with error handling
+			# ENHANCED: Perform combined sentiment analysis
 			try:
-				transformer_sentiment = analyze_sentiment_transformer(text, speaker_id, None, verbose=False)
-				processed_count += 1
-			except Exception as e:
-				console.print(f"[red]❌ Transformer analysis failed for utterance: {str(e)}[/red]")
-				transformer_sentiment = _create_fallback_sentiment_result(text, "transformer_error")
-			
-			llm_sentiment = None
-			if use_llm:
-				try:
-					llm_sentiment = analyze_sentiment_llm(text, speaker_id, None, None, verbose=False)
-				except Exception as e:
-					console.print(f"[red]❌ LLM analysis failed for utterance: {str(e)}[/red]")
-					llm_sentiment = _create_fallback_sentiment_result(text, "llm_error")
-			
-			# Store transformer analysis in database
-			transformer_analysis = db_manager.add_sentiment_analysis(
-				transcription_id=transcription.id,
-				analyzer_type=AnalyzerType.TRANSFORMER,
-				label=transformer_sentiment['label'],
-				category=transformer_sentiment['category'],
-				score=transformer_sentiment['score'],
-				confidence=transformer_sentiment['confidence'],
-				explanation=transformer_sentiment.get('explanation')
-			)
-			console.print(f"[green]💾[/green] Stored transformer analysis: {transformer_sentiment['category']}")
-			
-			# Store LLM analysis if enabled
-			if use_llm and llm_sentiment:
-				llm_analysis = db_manager.add_sentiment_analysis(
-					transcription_id=transcription.id,
-					analyzer_type=AnalyzerType.LLM,
-					label=llm_sentiment['label'],
-					category=llm_sentiment['category'],
-					score=llm_sentiment['score'],
-					confidence=llm_sentiment['confidence'],
-					explanation=llm_sentiment.get('explanation')
+				# Use combined analyzer for single, more accurate result
+				combined_sentiment = analyze_sentiment_combined(
+					text, speaker_id, None, use_llm=use_llm, verbose=False
 				)
-				console.print(f"[yellow]💾[/yellow] Stored LLM analysis: {llm_sentiment['category']}")
+				processed_count += 1
+				console.print(f"[green]🔄[/green] Combined analysis: {combined_sentiment['category']} (confidence: {combined_sentiment['confidence']:.1%})")
+			except Exception as e:
+				console.print(f"[red]❌ Combined analysis failed for utterance: {str(e)}[/red]")
+				# Fallback to simple transformer analysis
+				try:
+					combined_sentiment = analyze_sentiment_transformer(text, speaker_id, None, verbose=False)
+					console.print(f"[yellow]🔄[/yellow] Fallback to transformer: {combined_sentiment['category']}")
+				except Exception as e2:
+					console.print(f"[red]❌ Transformer fallback also failed: {str(e2)}[/red]")
+					combined_sentiment = _create_fallback_sentiment_result(text, "all_analysis_failed")
+			
+			# Store ONLY the combined analysis result in database (not separate analyses)
+			combined_analysis = db_manager.add_sentiment_analysis(
+				transcription_id=transcription.id,
+				analyzer_type=AnalyzerType.TRANSFORMER,  # Use TRANSFORMER as the type for combined results
+				label=combined_sentiment['label'],
+				category=combined_sentiment['category'],
+				score=combined_sentiment['score'],
+				confidence=combined_sentiment['confidence'],
+				explanation=combined_sentiment.get('explanation', 'Combined transformer + LLM analysis')
+			)
+			console.print(f"[green]💾[/green] Stored combined analysis: {combined_sentiment['category']}")
+			
+			# Store metadata about the combination in the explanation field
+			if 'combination_strategy' in combined_sentiment:
+				explanation = f"Combined analysis ({combined_sentiment['combination_strategy']}). "
+				if 'transformer_category' in combined_sentiment and 'llm_category' in combined_sentiment:
+					explanation += f"Transformer: {combined_sentiment['transformer_category']}, "
+					explanation += f"LLM: {combined_sentiment['llm_category']}"
+				combined_analysis.explanation = explanation
+				db_manager.session.commit()
 			
 			results.append({
 				"speaker": speaker.display_name,
@@ -322,8 +322,9 @@ def analyze_audio(audio_file, use_llm=True, expected_speakers=None):
 				"text": text,
 				"start_time": utterance.start,
 				"end_time": utterance.end,
-				"transformer_sentiment": transformer_sentiment,
-				"llm_sentiment": llm_sentiment if use_llm else None
+				"combined_sentiment": combined_sentiment,
+				"transformer_sentiment": combined_sentiment,  # For backward compatibility
+				"llm_sentiment": None  # No longer storing separate LLM results
 			})
 
 		# ENHANCED: Provide processing summary

@@ -49,16 +49,26 @@ class StatsDashboard {
             const data = await response.json();
             
             if (data.blobs) {
+                console.log('📊 Stats: Loading', data.blobs.length, 'blobs');
+                
                 // Reset counts
                 Object.keys(this.data).forEach(key => this.data[key] = 0);
                 this.intensityData = [];
                 this.confidenceData = [];
                 
-                // Process existing blobs
+                // Process existing blobs - ensure no duplicates
+                const uniqueBlobs = new Map();
                 data.blobs.forEach(blob => {
-                    this.processBlob(blob);
+                    // Use blob ID as key to prevent duplicates
+                    if (!uniqueBlobs.has(blob.id)) {
+                        uniqueBlobs.set(blob.id, blob);
+                        this.processBlob(blob);
+                    } else {
+                        console.warn('📊 Stats: Duplicate blob detected and skipped:', blob.id);
+                    }
                 });
                 
+                console.log('📊 Stats: Processed', uniqueBlobs.size, 'unique blobs');
                 this.updateAllDisplays();
             }
         } catch (error) {
@@ -68,9 +78,15 @@ class StatsDashboard {
     
     processBlob(blob) {
         const category = blob.category || 'reflective_neutral';
-        if (this.data.hasOwnProperty(category)) {
-            this.data[category]++;
+        console.log('📊 Processing blob:', blob.id, 'category:', category, 'text:', blob.text?.substring(0, 30) + '...');
+        
+        // Ensure we have the category in our data structure
+        if (!this.data.hasOwnProperty(category)) {
+            console.warn('📊 Unknown category detected:', category, 'adding to data structure');
+            this.data[category] = 0;
         }
+        
+        this.data[category]++;
         
         this.intensityData.push({
             category: category,
@@ -81,10 +97,31 @@ class StatsDashboard {
             category: category,
             confidence: blob.confidence || 0.5
         });
+        
+        console.log('📊 Category counts after processing:', this.data);
     }
     
     handleNewBlob(blob) {
+        console.log('📊 New blob received via WebSocket:', blob.id);
+        
+        // Check if we already have this blob to prevent duplicates
+        const existingBlobIndex = this.intensityData.findIndex(item => item.blob_id === blob.id);
+        if (existingBlobIndex !== -1) {
+            console.log('📊 Blob already exists, skipping:', blob.id);
+            return;
+        }
+        
+        // Add blob_id to intensity and confidence data for tracking
         this.processBlob(blob);
+        
+        // Mark the last entries with the blob ID for tracking
+        if (this.intensityData.length > 0) {
+            this.intensityData[this.intensityData.length - 1].blob_id = blob.id;
+        }
+        if (this.confidenceData.length > 0) {
+            this.confidenceData[this.confidenceData.length - 1].blob_id = blob.id;
+        }
+        
         this.updateAllDisplays();
         
         const categoryName = this.formatCategoryName(blob.category);
