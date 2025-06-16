@@ -107,8 +107,6 @@ class Config:
         """Get the recordings directory path."""
         return self.get('RECORDINGS_DIR')
     
-
-    
     def get_databases_path(self) -> Path:
         """Get the databases directory path."""
         return self.get('DATABASES_DIR')

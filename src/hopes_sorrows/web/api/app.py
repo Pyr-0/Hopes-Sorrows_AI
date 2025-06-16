@@ -106,25 +106,31 @@ def create_app():
                     elif analysis.analyzer_type == AnalyzerType.LLM:
                         llm_analysis = analysis
                 
-                if transformer_analysis:
+                # Prefer transformer analysis, but fall back to LLM if transformer is missing
+                primary_analysis = transformer_analysis or llm_analysis
+                
+                if primary_analysis:
                     try:
                         blob_data = {
                             'id': f"blob_{transcription.id}",
                             'speaker_id': transcription.speaker_id,
                             'speaker_name': transcription.speaker.name if transcription.speaker else "Unknown",
                             'text': transcription.text,
-                            'category': transformer_analysis.category,
-                            'score': convert_to_serializable(transformer_analysis.score),
-                            'confidence': convert_to_serializable(transformer_analysis.confidence),
-                            'intensity': convert_to_serializable(abs(transformer_analysis.score)),
-                            'label': transformer_analysis.label,
-                            'explanation': transformer_analysis.explanation,
+                            'category': primary_analysis.category,
+                            'score': convert_to_serializable(primary_analysis.score),
+                            'confidence': convert_to_serializable(primary_analysis.confidence),
+                            'intensity': convert_to_serializable(abs(primary_analysis.score)),
+                            'label': primary_analysis.label,
+                            'explanation': primary_analysis.explanation,
                             'created_at': transcription.created_at.isoformat() if transcription.created_at else None,
-                            'has_llm': llm_analysis is not None
+                            'has_llm': llm_analysis is not None,
+                            'analysis_source': 'transformer' if transformer_analysis else 'llm'
                         }
                         blobs_data.append(blob_data)
                     except Exception as e:
                         print(f"DEBUG: Error creating blob for transcription {transcription.id}: {e}")
+                else:
+                    print(f"DEBUG: Transcription {transcription.id} has no sentiment analysis - skipping")
             
             print(f"DEBUG: Created {len(blobs_data)} blobs")
             
