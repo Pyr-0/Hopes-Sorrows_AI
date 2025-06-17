@@ -477,6 +477,166 @@ def create_app():
         # Broadcast recording progress to all clients for live visualization
         emit('recording_progress', data, broadcast=True)
 
+    @app.route('/api/llm_status')
+    def llm_status():
+        """Check if LLM analysis is available and working."""
+        try:
+            import os
+            from ...analysis.sentiment.sa_LLM import analyze_sentiment as analyze_sentiment_llm
+            
+            # Check if API key is configured
+            openai_key = os.getenv("OPENAI_API_KEY")
+            if not openai_key or openai_key == "your_openai_api_key_here":
+                return jsonify({
+                    'available': False,
+                    'status': 'not_configured',
+                    'message': 'OpenAI API key not configured'
+                })
+            
+            # Test with a simple analysis
+            try:
+                test_result = analyze_sentiment_llm("Hello", verbose=False)
+                return jsonify({
+                    'available': True,
+                    'status': 'working',
+                    'message': 'LLM analysis is available and working'
+                })
+            except Exception as e:
+                error_msg = str(e)
+                if "401" in error_msg or "invalid_api_key" in error_msg:
+                    status = 'invalid_key'
+                    message = 'Invalid OpenAI API key'
+                elif "insufficient_quota" in error_msg:
+                    status = 'quota_exceeded'
+                    message = 'OpenAI API quota exceeded'
+                else:
+                    status = 'error'
+                    message = f'LLM test failed: {error_msg}'
+                
+                return jsonify({
+                    'available': False,
+                    'status': status,
+                    'message': message
+                })
+                
+        except Exception as e:
+            return jsonify({
+                'available': False,
+                'status': 'error',
+                'message': f'LLM module error: {str(e)}'
+            })
+
+    @app.route('/api/reanalyze_with_llm', methods=['POST'])
+    def reanalyze_with_llm():
+        """Re-analyze existing transcriptions with LLM for enhanced results."""
+        try:
+            data = request.get_json()
+            transcription_ids = data.get('transcription_ids', [])
+            
+            if not transcription_ids:
+                return jsonify({'error': 'No transcription IDs provided'}), 400
+            
+            # Check if LLM is available
+            import os
+            openai_key = os.getenv("OPENAI_API_KEY")
+            if not openai_key or openai_key == "your_openai_api_key_here":
+                return jsonify({'error': 'LLM not configured'}), 400
+            
+            from ...analysis.sentiment.combined_analyzer import analyze_sentiment_combined
+            
+            results = []
+            updated_count = 0
+            
+            for transcription_id in transcription_ids:
+                try:
+                    # Get the transcription
+                    transcription = db_manager.get_transcription_with_analyses(transcription_id)
+                    if not transcription:
+                        results.append({
+                            'transcription_id': transcription_id,
+                            'status': 'not_found',
+                            'message': 'Transcription not found'
+                        })
+                        continue
+                    
+                    # Perform combined analysis with LLM
+                    combined_result = analyze_sentiment_combined(
+                        transcription.text, 
+                        transcription.speaker_id, 
+                        None, 
+                        use_llm=True, 
+                        verbose=False
+                    )
+                    
+                    # Check if LLM was actually used
+                    if not combined_result.get('has_llm', False):
+                        results.append({
+                            'transcription_id': transcription_id,
+                            'status': 'llm_failed',
+                            'message': 'LLM analysis failed, using transformer only'
+                        })
+                        continue
+                    
+                    # Determine analyzer type
+                    if combined_result.get('analysis_source') not in ['transformer_only', 'fallback']:
+                        analyzer_type = AnalyzerType.COMBINED
+                    else:
+                        analyzer_type = AnalyzerType.TRANSFORMER
+                    
+                    # Update or create new analysis
+                    # Check if we already have a COMBINED analysis
+                    existing_combined = None
+                    for analysis in transcription.sentiment_analyses:
+                        if analysis.analyzer_type == AnalyzerType.COMBINED:
+                            existing_combined = analysis
+                            break
+                    
+                    if existing_combined:
+                        # Update existing combined analysis
+                        existing_combined.label = combined_result['label']
+                        existing_combined.category = combined_result['category']
+                        existing_combined.score = combined_result['score']
+                        existing_combined.confidence = combined_result['confidence']
+                        existing_combined.explanation = combined_result.get('explanation', 'Updated combined analysis')
+                        db_manager.session.commit()
+                    else:
+                        # Create new combined analysis
+                        db_manager.add_sentiment_analysis(
+                            transcription_id=transcription.id,
+                            analyzer_type=analyzer_type,
+                            label=combined_result['label'],
+                            category=combined_result['category'],
+                            score=combined_result['score'],
+                            confidence=combined_result['confidence'],
+                            explanation=combined_result.get('explanation', 'Combined transformer + LLM analysis')
+                        )
+                    
+                    updated_count += 1
+                    results.append({
+                        'transcription_id': transcription_id,
+                        'status': 'success',
+                        'category': combined_result['category'],
+                        'confidence': combined_result['confidence'],
+                        'analysis_source': combined_result.get('analysis_source', 'unknown')
+                    })
+                    
+                except Exception as e:
+                    results.append({
+                        'transcription_id': transcription_id,
+                        'status': 'error',
+                        'message': str(e)
+                    })
+            
+            return jsonify({
+                'success': True,
+                'updated_count': updated_count,
+                'total_requested': len(transcription_ids),
+                'results': results
+            })
+            
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
     return app
 
 if __name__ == '__main__':

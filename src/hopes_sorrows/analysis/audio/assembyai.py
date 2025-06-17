@@ -302,24 +302,32 @@ def analyze_audio(audio_file, use_llm=True, expected_speakers=None):
 					combined_sentiment = _create_fallback_sentiment_result(text, "all_analysis_failed")
 			
 			# Store ONLY the combined analysis result in database (not separate analyses)
+			# Determine the appropriate analyzer type based on what was actually used
+			if combined_sentiment.get('has_llm', False) and combined_sentiment.get('analysis_source') not in ['transformer_only', 'fallback']:
+				analyzer_type = AnalyzerType.COMBINED
+				analysis_description = f"Combined analysis using transformer + LLM ({combined_sentiment.get('combination_strategy', 'weighted_average')})"
+			else:
+				analyzer_type = AnalyzerType.TRANSFORMER
+				analysis_description = "Transformer-only analysis (LLM unavailable or failed)"
+			
 			combined_analysis = db_manager.add_sentiment_analysis(
 				transcription_id=transcription.id,
-				analyzer_type=AnalyzerType.TRANSFORMER,  # Use TRANSFORMER as the type for combined results
+				analyzer_type=analyzer_type,  # Use appropriate type based on actual analysis
 				label=combined_sentiment['label'],
 				category=combined_sentiment['category'],
 				score=combined_sentiment['score'],
 				confidence=combined_sentiment['confidence'],
-				explanation=combined_sentiment.get('explanation', 'Combined transformer + LLM analysis')
+				explanation=combined_sentiment.get('explanation', analysis_description)
 			)
-			console.print(f"[green]💾[/green] Stored combined analysis: {combined_sentiment['category']}")
+			console.print(f"[green]💾[/green] Stored {analyzer_type.value} analysis: {combined_sentiment['category']}")
 			
-			# Store metadata about the combination in the explanation field
+			# Store detailed metadata about the combination in the explanation field
 			if 'combination_strategy' in combined_sentiment:
-				explanation = f"Combined analysis ({combined_sentiment['combination_strategy']}). "
+				detailed_explanation = f"{analysis_description}. "
 				if 'transformer_category' in combined_sentiment and 'llm_category' in combined_sentiment:
-					explanation += f"Transformer: {combined_sentiment['transformer_category']}, "
-					explanation += f"LLM: {combined_sentiment['llm_category']}"
-				combined_analysis.explanation = explanation
+					detailed_explanation += f"Transformer: {combined_sentiment['transformer_category']}, "
+					detailed_explanation += f"LLM: {combined_sentiment['llm_category']}"
+				combined_analysis.explanation = detailed_explanation
 				db_manager.session.commit()
 			
 			results.append({

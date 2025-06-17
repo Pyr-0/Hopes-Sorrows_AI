@@ -11,6 +11,7 @@ class AnalyzerType(enum.Enum):
     """Enum for different types of sentiment analyzers"""
     TRANSFORMER = "transformer"
     LLM = "llm"
+    COMBINED = "combined"  # New type for combined transformer + LLM results
 
 class RecordingSession(Base):
     """Model for storing recording session information"""
