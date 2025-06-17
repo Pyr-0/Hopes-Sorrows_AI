@@ -158,6 +158,37 @@ class BlobEmotionVisualizer {
                 self.nudgeNearbyBlobs(p.mouseX, p.mouseY);
             };
             
+            // Add touch support for mobile devices
+            p.touchStarted = () => {
+                if (p.touches && p.touches.length > 0) {
+                    const touch = p.touches[0];
+                    const rect = p.canvas.getBoundingClientRect();
+                    
+                    // Use proper touch coordinates
+                    const touchX = touch.x;
+                    const touchY = touch.y;
+                    const screenX = touchX + rect.left;
+                    const screenY = touchY + rect.top;
+                    
+                    console.log('📱 Touch started at canvas coords:', touchX, touchY);
+                    console.log('📱 Touch screen coords:', screenX, screenY);
+                    console.log('📱 Available blobs for touch:', self.blobs.length);
+                    
+                    if (!self.isClickOnUIElement(screenX, screenY)) {
+                        console.log('📱 Touch not on UI element, handling interaction');
+                        self.handleInteraction(touchX, touchY);
+                    } else {
+                        console.log('📱 Touch blocked by UI element');
+                    }
+                    
+                    self.createCanvasRipple(touchX, touchY);
+                    self.nudgeNearbyBlobs(touchX, touchY);
+                }
+                
+                // Prevent default touch behavior
+                return false;
+            };
+            
             p.mouseMoved = () => {
                 self.updateHoveredBlob(p.mouseX, p.mouseY);
             };
@@ -492,24 +523,42 @@ class BlobEmotionVisualizer {
      */
     shouldBlockInteraction() {
         // Check for visible UI panels that should block blob interaction
-        const blockers = [
-            '.instructions-panel:not(.hidden)',
-            '.analysis-confirmation.visible',
-            '.loading-overlay:not(.hidden)',
-            '.error-panel.visible',
-            '.error-panel.active'
-        ];
+        // Only block if elements are actually visible to the user
         
-        const isBlocked = blockers.some(selector => {
-            const element = document.querySelector(selector);
-            const isVisible = element && element.offsetParent !== null;
-            if (isVisible) {
-                console.log('🚫 Interaction blocked by:', selector);
-            }
-            return isVisible;
-        });
+        // Check loading overlay
+        const loadingOverlay = document.querySelector('.loading-overlay');
+        if (loadingOverlay && !loadingOverlay.classList.contains('hidden') && 
+            loadingOverlay.offsetParent !== null) {
+            console.log('🚫 Interaction blocked by: loading overlay');
+            return true;
+        }
         
-        return isBlocked;
+        // Check analysis confirmation panel
+        const analysisPanel = document.querySelector('.analysis-confirmation-panel');
+        if (analysisPanel && analysisPanel.classList.contains('visible') && 
+            analysisPanel.offsetParent !== null) {
+            console.log('🚫 Interaction blocked by: analysis confirmation panel');
+            return true;
+        }
+        
+        // Check instructions panel (only if explicitly visible)
+        const instructionsPanel = document.querySelector('.instructions-panel');
+        if (instructionsPanel && instructionsPanel.classList.contains('visible') && 
+            instructionsPanel.offsetParent !== null && 
+            getComputedStyle(instructionsPanel).opacity > 0.1) {
+            console.log('🚫 Interaction blocked by: instructions panel');
+            return true;
+        }
+        
+        // Check error panels
+        const errorPanel = document.querySelector('.error-panel.visible, .error-panel.active');
+        if (errorPanel && errorPanel.offsetParent !== null) {
+            console.log('🚫 Interaction blocked by: error panel');
+            return true;
+        }
+        
+        console.log('✅ No UI blocking detected - blob interactions allowed');
+        return false;
     }
     
     /**
@@ -517,85 +566,140 @@ class BlobEmotionVisualizer {
      */
     showBlobDetails(blob, x, y) {
         console.log('🎯 Showing blob details for:', blob);
+        console.log('🎯 Tooltip coordinates:', x, y);
         
         // Remove existing tooltip
         this.hideTooltip();
         
-        // Create new tooltip with simplified HTML to avoid syntax errors
+        // Get canvas rect for proper positioning
+        const canvasRect = this.p5Instance.canvas.getBoundingClientRect();
+        const screenX = x + canvasRect.left;
+        const screenY = y + canvasRect.top;
+        
+        console.log('🎯 Canvas rect:', canvasRect);
+        console.log('🎯 Screen position for tooltip:', screenX, screenY);
+        
+        // Create new tooltip with enhanced styling
         const tooltip = document.createElement('div');
         tooltip.className = 'blob-tooltip';
         tooltip.style.cssText = `
-            position: fixed;
-            z-index: 10000;
-            background: rgba(0, 0, 0, 0.95);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 12px;
-            padding: 20px;
-            max-width: 320px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(10px);
-            font-family: 'Inter', sans-serif;
-            opacity: 0;
-            transform: scale(0.8) translateY(10px);
-            transition: all 0.3s ease;
-            color: white;
+            position: fixed !important;
+            z-index: 10000 !important;
+            background: rgba(0, 0, 0, 0.95) !important;
+            border: 2px solid rgba(255, 255, 255, 0.3) !important;
+            border-radius: 16px !important;
+            padding: 24px !important;
+            max-width: 340px !important;
+            min-width: 280px !important;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7), 0 0 20px rgba(102, 204, 179, 0.2) !important;
+            backdrop-filter: blur(15px) !important;
+            font-family: 'Inter', sans-serif !important;
+            opacity: 0 !important;
+            transform: scale(0.85) translateY(20px) !important;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+            color: white !important;
+            pointer-events: auto !important;
+            display: block !important;
+            font-size: 14px !important;
+            line-height: 1.5 !important;
         `;
         
         const color = this.sentimentColors[blob.category] || [1, 1, 1];
         const categoryColor = `rgb(${color[0] * 255}, ${color[1] * 255}, ${color[2] * 255})`;
         
-        // Create simplified tooltip content
+        // Create enhanced tooltip content
         tooltip.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-                <div style="display: flex; align-items: center; gap: 8px; color: ${categoryColor}; font-weight: 600; font-size: 14px;">
-                    <div style="width: 12px; height: 12px; border-radius: 50%; background: ${categoryColor}; box-shadow: 0 0 10px ${categoryColor}40;"></div>
-                    <span>${blob.category.replace('_', ' ').toUpperCase()}</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 2px solid rgba(255, 255, 255, 0.15);">
+                <div style="display: flex; align-items: center; gap: 10px; color: ${categoryColor}; font-weight: 700; font-size: 15px; text-transform: uppercase; letter-spacing: 0.5px;">
+                    <div style="width: 14px; height: 14px; border-radius: 50%; background: ${categoryColor}; box-shadow: 0 0 15px ${categoryColor}60;"></div>
+                    <span>${blob.category.replace('_', ' ')}</span>
                 </div>
-                <button onclick="this.parentElement.parentElement.remove()" style="background: none; border: none; color: rgba(255, 255, 255, 0.6); font-size: 18px; cursor: pointer; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">×</button>
+                <button class="tooltip-close-btn" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: rgba(255, 255, 255, 0.8); font-size: 16px; cursor: pointer; padding: 4px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: all 0.2s ease;">×</button>
             </div>
-            <div style="color: white; font-size: 14px; line-height: 1.5; margin-bottom: 15px; font-style: italic;">"${blob.text}"</div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 15px;">
-                <div style="text-align: center;">
-                    <div style="color: rgba(255, 255, 255, 0.6); font-size: 11px; margin-bottom: 4px;">Confidence</div>
-                    <div style="color: ${categoryColor}; font-weight: 600; font-size: 14px;">${(blob.confidence * 100).toFixed(1)}%</div>
+            <div style="color: rgba(255, 255, 255, 0.95); font-size: 15px; line-height: 1.6; margin-bottom: 18px; font-style: italic; background: rgba(255, 255, 255, 0.03); padding: 12px; border-radius: 8px; border-left: 3px solid ${categoryColor};">"${blob.text}"</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 18px;">
+                <div style="text-align: center; background: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 8px;">
+                    <div style="color: rgba(255, 255, 255, 0.7); font-size: 11px; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Confidence</div>
+                    <div style="color: ${categoryColor}; font-weight: 700; font-size: 16px;">${(blob.confidence * 100).toFixed(1)}%</div>
                 </div>
-                <div style="text-align: center;">
-                    <div style="color: rgba(255, 255, 255, 0.6); font-size: 11px; margin-bottom: 4px;">Intensity</div>
-                    <div style="color: ${categoryColor}; font-weight: 600; font-size: 14px;">${(blob.intensity * 100).toFixed(1)}%</div>
+                <div style="text-align: center; background: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 8px;">
+                    <div style="color: rgba(255, 255, 255, 0.7); font-size: 11px; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Intensity</div>
+                    <div style="color: ${categoryColor}; font-weight: 700; font-size: 16px;">${(blob.intensity * 100).toFixed(1)}%</div>
                 </div>
-                <div style="text-align: center;">
-                    <div style="color: rgba(255, 255, 255, 0.6); font-size: 11px; margin-bottom: 4px;">Score</div>
-                    <div style="color: ${categoryColor}; font-weight: 600; font-size: 14px;">${blob.score.toFixed(3)}</div>
+                <div style="text-align: center; background: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 8px;">
+                    <div style="color: rgba(255, 255, 255, 0.7); font-size: 11px; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Score</div>
+                    <div style="color: ${categoryColor}; font-weight: 700; font-size: 16px;">${blob.score.toFixed(3)}</div>
                 </div>
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 11px; color: rgba(255, 255, 255, 0.5);">
+            <div style="display: flex; justify-content: space-between; font-size: 12px; color: rgba(255, 255, 255, 0.6); background: rgba(255, 255, 255, 0.03); padding: 8px 12px; border-radius: 6px;">
                 <div>
-                    <span>Speaker: ${blob.speaker_name || 'Anonymous'}</span>
+                    <span style="font-weight: 500;">Speaker: ${blob.speaker_name || 'Anonymous'}</span>
                 </div>
                 <div>
-                    <span>Time: ${blob.created_at ? new Date(blob.created_at).toLocaleTimeString() : 'Unknown'}</span>
+                    <span style="font-weight: 500;">Time: ${blob.created_at ? new Date(blob.created_at).toLocaleTimeString() : 'Unknown'}</span>
                 </div>
             </div>
         `;
         
-        // Position tooltip
-        tooltip.style.left = `${Math.min(x + 20, window.innerWidth - 340)}px`;
-        tooltip.style.top = `${Math.max(y - 100, 20)}px`;
+        // Position tooltip with improved logic
+        const isMobile = window.innerWidth <= 768;
+        const tooltipWidth = isMobile ? Math.min(340, window.innerWidth - 40) : 340;
+        
+        let tooltipLeft, tooltipTop;
+        
+        if (isMobile) {
+            // Center tooltip on mobile
+            tooltipLeft = (window.innerWidth - tooltipWidth) / 2;
+            tooltipTop = Math.min(screenY + 40, window.innerHeight - 250);
+            tooltip.style.width = `${tooltipWidth}px`;
+        } else {
+            // Smart positioning for desktop
+            tooltipLeft = Math.min(screenX + 30, window.innerWidth - tooltipWidth - 20);
+            tooltipTop = Math.max(screenY - 150, 20);
+            
+            // Prevent tooltip from going off-screen
+            if (tooltipLeft < 20) tooltipLeft = 20;
+            if (tooltipTop + 300 > window.innerHeight) {
+                tooltipTop = window.innerHeight - 320;
+            }
+        }
+        
+        tooltip.style.left = `${tooltipLeft}px`;
+        tooltip.style.top = `${tooltipTop}px`;
         
         document.body.appendChild(tooltip);
         this.currentTooltip = tooltip;
         
-        console.log('🎯 Tooltip created and added to DOM');
+        console.log('🎯 Tooltip created and positioned at:', tooltipLeft, tooltipTop);
         
         // Animate tooltip entrance
-        setTimeout(() => {
-            tooltip.style.opacity = '1';
-            tooltip.style.transform = 'scale(1) translateY(0)';
+        requestAnimationFrame(() => {
+            tooltip.style.setProperty('opacity', '1', 'important');
+            tooltip.style.setProperty('transform', 'scale(1) translateY(0)', 'important');
             console.log('🎯 Tooltip animated in');
-        }, 50);
+        });
         
         // Auto-hide after delay
         this.setupTooltipAutoHide(tooltip);
+        
+        // Add close button event listener with enhanced styling
+        const closeBtn = tooltip.querySelector('.tooltip-close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('mouseenter', () => {
+                closeBtn.style.background = 'rgba(255, 255, 255, 0.2)';
+                closeBtn.style.color = 'white';
+                closeBtn.style.transform = 'scale(1.1)';
+            });
+            closeBtn.addEventListener('mouseleave', () => {
+                closeBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+                closeBtn.style.color = 'rgba(255, 255, 255, 0.8)';
+                closeBtn.style.transform = 'scale(1)';
+            });
+            closeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.hideTooltip();
+            });
+        }
     }
     
     /**
@@ -972,7 +1076,7 @@ class BlobEmotionVisualizer {
     }
     
     /**
-     * Find blob at coordinates
+     * Find blob at coordinates with enhanced detection
      */
     getBlobAt(x, y) {
         console.log('🎯 Looking for blob at:', x, y);
@@ -986,8 +1090,8 @@ class BlobEmotionVisualizer {
                     Math.pow(x - blob.x, 2) + Math.pow(y - blob.y, 2)
                 );
                 
-                // Use the larger glow radius for hit detection (size * 2)
-                const hitRadius = blob.size * 2;
+                // Use enhanced hit radius for better click detection (size * 3 for easier clicking)
+                const hitRadius = Math.max(blob.size * 3, 40); // Minimum 40px radius
                 
                 console.log(`🎯 Blob ${i}: pos(${blob.x.toFixed(1)}, ${blob.y.toFixed(1)}) size:${blob.size} distance:${distance.toFixed(1)} hitRadius:${hitRadius}`);
                 
@@ -1436,6 +1540,89 @@ class BlobEmotionVisualizer {
                 this.applyForce(blob, pushForce);
             }
         });
+    }
+
+    /**
+     * Remove duplicate blobs based on text similarity
+     */
+    removeDuplicateBlobs() {
+        console.log('🧹 Checking for duplicate blobs...');
+        
+        const uniqueBlobs = [];
+        const seenTexts = new Set();
+        
+        this.blobs.forEach(blob => {
+            // Create a normalized version of the text for comparison
+            const normalizedText = blob.text.toLowerCase().trim().replace(/[^\w\s]/g, '');
+            
+            // Check if we've seen this text before (allowing for minor variations)
+            let isDuplicate = false;
+            for (const seenText of seenTexts) {
+                // Calculate similarity (simple approach)
+                const similarity = this.calculateTextSimilarity(normalizedText, seenText);
+                if (similarity > 0.85) { // 85% similarity threshold
+                    isDuplicate = true;
+                    break;
+                }
+            }
+            
+            if (!isDuplicate) {
+                seenTexts.add(normalizedText);
+                uniqueBlobs.push(blob);
+            } else {
+                console.log('🗑️ Removing duplicate blob:', blob.text);
+            }
+        });
+        
+        const removedCount = this.blobs.length - uniqueBlobs.length;
+        this.blobs = uniqueBlobs;
+        
+        // Clear selected blobs that were removed
+        this.selectedBlobs.forEach(blobId => {
+            if (!this.getBlobById(blobId)) {
+                this.selectedBlobs.delete(blobId);
+            }
+        });
+        
+        console.log(`✅ Removed ${removedCount} duplicate blobs. ${uniqueBlobs.length} unique blobs remaining.`);
+        return removedCount;
+    }
+    
+    /**
+     * Calculate text similarity using simple character comparison
+     */
+    calculateTextSimilarity(text1, text2) {
+        if (text1 === text2) return 1.0;
+        if (text1.length === 0 || text2.length === 0) return 0.0;
+        
+        const maxLength = Math.max(text1.length, text2.length);
+        let matches = 0;
+        
+        for (let i = 0; i < Math.min(text1.length, text2.length); i++) {
+            if (text1[i] === text2[i]) matches++;
+        }
+        
+        return matches / maxLength;
+    }
+    
+    /**
+     * Clear all blobs of a specific category
+     */
+    clearBlobsByCategory(category) {
+        const initialCount = this.blobs.length;
+        this.blobs = this.blobs.filter(blob => blob.category !== category);
+        const removedCount = initialCount - this.blobs.length;
+        
+        // Remove from selected blobs as well
+        this.selectedBlobs.forEach(blobId => {
+            const blob = this.getBlobById(blobId);
+            if (!blob || blob.category === category) {
+                this.selectedBlobs.delete(blobId);
+            }
+        });
+        
+        console.log(`🧹 Removed ${removedCount} blobs from category: ${category}`);
+        return removedCount;
     }
 }
 

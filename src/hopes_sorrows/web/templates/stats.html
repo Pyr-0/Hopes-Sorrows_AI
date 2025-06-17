@@ -8,7 +8,16 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="512x512" href="{{ url_for('static', filename='galaxy.png') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='galaxy.png') }}">
+    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='js/anime.min.js') }}"></script>
 </head>
 <body class="stats-page">
     <!-- Navigation -->
@@ -20,8 +29,8 @@
             <div class="nav-links">
                 <a href="/" class="nav-link">Home</a>
                 <a href="/info" class="nav-link">About</a>
-                <a href="/app" class="nav-link">Experience</a>
                 <a href="/stats" class="nav-link active">Statistics</a>
+                <a href="/app" class="nav-link nav-cta">Experience</a>
             </div>
         </div>
     </nav>
@@ -29,149 +38,272 @@
     <!-- Main Stats Container -->
     <main class="stats-container">
         <div class="stats-header">
-            <h1 class="page-title">Emotional Landscape Statistics</h1>
-            <p class="page-subtitle">Observing the growth and patterns of shared human emotions</p>
+            <h1 class="page-title">Emotional Observatory</h1>
+            <p class="page-subtitle">
+                Witnessing the collective pulse of human emotion through shared voices
+            </p>
         </div>
 
         <!-- Real-time Overview -->
         <section class="overview-section">
             <div class="overview-grid">
                 <div class="stat-card">
-                    <div class="stat-icon">🎤</div>
+                    <div class="stat-icon">🌌</div>
                     <div class="stat-number" id="total-voices">0</div>
-                    <div class="stat-label">Total Voices</div>
+                    <div class="stat-label">Total Voices Shared</div>
+                    <div class="stat-sublabel">Emotional expressions captured</div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-icon">💝</div>
+                
+                <div class="stat-card hope">
+                    <div class="stat-icon">✨</div>
                     <div class="stat-number" id="hope-count">0</div>
                     <div class="stat-label">Hope</div>
+                    <div class="stat-sublabel">Rising with optimism</div>
                 </div>
-                <div class="stat-card">
+                
+                <div class="stat-card sorrow">
                     <div class="stat-icon">💙</div>
                     <div class="stat-number" id="sorrow-count">0</div>
                     <div class="stat-label">Sorrow</div>
+                    <div class="stat-sublabel">Finding solace in depths</div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-icon">🦋</div>
+                
+                <div class="stat-card transformative">
+                    <div class="stat-icon">🔥</div>
                     <div class="stat-number" id="transformative-count">0</div>
                     <div class="stat-label">Transformative</div>
+                    <div class="stat-sublabel">Evolving and changing</div>
                 </div>
-                <div class="stat-card">
+                
+                <div class="stat-card ambivalent">
                     <div class="stat-icon">⚖️</div>
                     <div class="stat-number" id="ambivalent-count">0</div>
                     <div class="stat-label">Ambivalent</div>
+                    <div class="stat-sublabel">Complex inner patterns</div>
                 </div>
-                <div class="stat-card">
+                
+                <div class="stat-card reflective">
                     <div class="stat-icon">🤔</div>
                     <div class="stat-number" id="reflective-count">0</div>
                     <div class="stat-label">Reflective</div>
+                    <div class="stat-sublabel">Thoughtful contemplation</div>
                 </div>
+            </div>
+        </section>
+
+        <!-- Insights Section -->
+        <section class="content-section">
+            <h2 class="section-title">Understanding Our Emotional Climate</h2>
+            <div class="content-text">
+                <p>
+                    These statistics represent more than numbers—they're a reflection of our shared humanity. 
+                    Each voice contributes to a growing understanding of how we collectively experience and process emotions.
+                </p>
+                
+                <h3>🌡️ Emotional Climate Patterns</h3>
+                <p>
+                    Notice how emotions shift throughout days and seasons. <strong>Hope tends to rise in mornings</strong>, 
+                    while reflection deepens in evening hours. These patterns reveal the natural rhythms of human experience.
+                </p>
+                
+                <h3>🤝 Social Dynamics of Emotion</h3>
+                <p>
+                    Watch how similar emotions cluster together, creating support networks. When someone shares sorrow, 
+                    others find comfort in knowing they're not alone. <strong>Every emotion creates ripples</strong> that 
+                    extend far beyond the individual moment.
+                </p>
+                
+                <h3>📈 Recent Patterns</h3>
+                <p>
+                    Our emotional landscape evolves continuously. Seasonal changes, global events, and shared experiences 
+                    all influence the collective emotional climate, making each day's emotional constellation unique.
+                </p>
             </div>
         </section>
 
         <!-- Charts Section -->
         <section class="charts-section">
+            <h2 class="section-title">Emotional Constellation Patterns</h2>
             <div class="charts-grid">
-                <!-- Emotion Distribution Chart -->
                 <div class="chart-container">
-                    <h3 class="chart-title">Emotion Distribution</h3>
+                    <h3 class="chart-title">Emotion Constellation</h3>
                     <canvas id="emotion-pie-chart"></canvas>
+                    <p class="chart-description">
+                        The relative balance of emotional categories reveals our collective state. Notice how hope and 
+                        sorrow often coexist—a reminder that both joy and sadness are essential parts of human experience.
+                    </p>
                 </div>
-
-                <!-- Growth Over Time -->
+                
                 <div class="chart-container">
-                    <h3 class="chart-title">Growth Over Time</h3>
-                    <canvas id="growth-line-chart"></canvas>
-                </div>
-
-                <!-- Daily Activity -->
-                <div class="chart-container">
-                    <h3 class="chart-title">Daily Activity Pattern</h3>
+                    <h3 class="chart-title">Daily Rhythms</h3>
                     <canvas id="daily-activity-chart"></canvas>
+                    <p class="chart-description">
+                        Emotional sharing follows natural rhythms. Morning hours carry hope and determination, while 
+                        evenings bring reflection and introspection. These patterns reflect our biological and social cycles.
+                    </p>
                 </div>
-
-                <!-- Intensity Distribution -->
+                
                 <div class="chart-container">
-                    <h3 class="chart-title">Emotional Intensity</h3>
-                    <canvas id="intensity-chart"></canvas>
+                    <h3 class="chart-title">Cosmic Growth</h3>
+                    <canvas id="growth-chart"></canvas>
+                    <p class="chart-description">
+                        As more voices join our emotional universe, we see increasing diversity and richness. Each new 
+                        participant adds unique perspectives, creating a more complete picture of human emotion.
+                    </p>
                 </div>
             </div>
         </section>
 
-        <!-- Detailed Statistics -->
+        <!-- Detailed Stats -->
         <section class="detailed-stats">
-            <h3 class="section-title">Detailed Analytics</h3>
-            
+            <h2 class="section-title">Detailed Observatory Data</h2>
             <div class="stats-tabs">
-                <button class="tab-btn active" data-tab="current">Current Session</button>
-                <button class="tab-btn" data-tab="today">Today</button>
-                <button class="tab-btn" data-tab="week">This Week</button>
-                <button class="tab-btn" data-tab="all">All Time</button>
+                <button class="tab-btn active" data-tab="overview">Overview</button>
+                <button class="tab-btn" data-tab="emotions">Emotions</button>
+                <button class="tab-btn" data-tab="patterns">Patterns</button>
+                <button class="tab-btn" data-tab="insights">Live Feed</button>
             </div>
-
+            
             <div class="tab-content">
-                <div class="tab-panel active" id="current-panel">
+                <div class="tab-panel active" id="overview">
                     <div class="detailed-grid">
                         <div class="detail-card">
-                            <h4>Average Confidence</h4>
+                            <h4>Total Sessions</h4>
+                            <div class="detail-value" id="total-sessions">0</div>
+                            <p>Recording sessions completed</p>
+                        </div>
+                        <div class="detail-card">
+                            <h4>Average Duration</h4>
+                            <div class="detail-value" id="avg-duration">0s</div>
+                            <p>Time spent sharing emotions</p>
+                        </div>
+                        <div class="detail-card">
+                            <h4>AI Confidence</h4>
                             <div class="detail-value" id="avg-confidence">0%</div>
+                            <p>Average emotion detection accuracy</p>
                         </div>
                         <div class="detail-card">
-                            <h4>Average Intensity</h4>
-                            <div class="detail-value" id="avg-intensity">0%</div>
-                        </div>
-                        <div class="detail-card">
-                            <h4>Most Common Emotion</h4>
-                            <div class="detail-value" id="most-common">-</div>
-                        </div>
-                        <div class="detail-card">
-                            <h4>Active Speakers</h4>
-                            <div class="detail-value" id="active-speakers">0</div>
+                            <h4>Emotional Diversity</h4>
+                            <div class="detail-value" id="emotion-diversity">0</div>
+                            <p>Different emotion types expressed</p>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Other tab panels would be populated dynamically -->
-                <div class="tab-panel" id="today-panel">
-                    <div class="coming-soon">
-                        <h4>Historical Data Coming Soon</h4>
-                        <p>We're building comprehensive historical analytics to track emotional patterns over time.</p>
+                <div class="tab-panel" id="emotions">
+                    <div class="detailed-grid">
+                        <div class="detail-card hope">
+                            <h4>Hope Expressions</h4>
+                            <div class="detail-value" id="hope-details">0</div>
+                            <p>Optimism, dreams, and aspirations shared. These emotions naturally rise and seek connection with similar positive feelings.</p>
+                        </div>
+                        <div class="detail-card sorrow">
+                            <h4>Sorrow Expressions</h4>
+                            <div class="detail-value" id="sorrow-details">0</div>
+                            <p>Sadness, grief, and melancholy shared. These emotions find comfort in depth and gentle companionship.</p>
+                        </div>
+                        <div class="detail-card transformative">
+                            <h4>Transformative Expressions</h4>
+                            <div class="detail-value" id="transformative-details">0</div>
+                            <p>Change, growth, and evolution. These dynamic emotions catalyze movement and inspire adaptation.</p>
+                        </div>
+                        <div class="detail-card ambivalent">
+                            <h4>Ambivalent Expressions</h4>
+                            <div class="detail-value" id="ambivalent-details">0</div>
+                            <p>Mixed feelings and internal conflicts. These complex emotions reflect the nuanced nature of human experience.</p>
+                        </div>
+                        <div class="detail-card reflective">
+                            <h4>Reflective Expressions</h4>
+                            <div class="detail-value" id="reflective-details">0</div>
+                            <p>Contemplation and thoughtfulness. These balanced emotions provide stability and grounding to the emotional landscape.</p>
+                        </div>
                     </div>
                 </div>
                 
-                <div class="tab-panel" id="week-panel">
-                    <div class="coming-soon">
-                        <h4>Weekly Analytics Coming Soon</h4>
-                        <p>Discover weekly emotional trends and patterns in the community.</p>
+                <div class="tab-panel" id="patterns">
+                    <div class="detailed-grid">
+                        <div class="detail-card">
+                            <h4>Peak Sharing Times</h4>
+                            <div class="detail-value">Evening</div>
+                            <p>Most emotional sharing happens during reflective evening hours</p>
+                        </div>
+                        <div class="detail-card">
+                            <h4>Emotional Clusters</h4>
+                            <div class="detail-value" id="cluster-count">0</div>
+                            <p>Groups of similar emotions that have formed natural communities</p>
+                        </div>
+                        <div class="detail-card">
+                            <h4>Cross-Emotion Interactions</h4>
+                            <div class="detail-value" id="interaction-count">0</div>
+                            <p>Moments when different emotion types influenced each other</p>
+                        </div>
+                        <div class="detail-card">
+                            <h4>Ripple Effects</h4>
+                            <div class="detail-value" id="ripple-count">0</div>
+                            <p>Times when one emotion created waves affecting the entire landscape</p>
+                        </div>
                     </div>
                 </div>
                 
-                <div class="tab-panel" id="all-panel">
-                    <div class="coming-soon">
-                        <h4>Historical Overview Coming Soon</h4>
-                        <p>A comprehensive view of all emotional data collected since the beginning.</p>
+                <div class="tab-panel" id="insights">
+                    <div class="live-feed">
+                        <h3>Recent Emotional Expressions</h3>
+                        <div class="feed-container" id="live-feed-container">
+                            <div class="feed-item welcome">
+                                <div class="feed-icon">🌟</div>
+                                <div class="feed-content">
+                                    <div class="feed-text">Welcome to the Emotional Observatory! Share your voice to see real-time updates here.</div>
+                                    <div class="feed-time">Just now</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Live Feed -->
-        <section class="live-feed">
-            <h3 class="section-title">Live Activity Feed</h3>
-            <div class="feed-container" id="activity-feed">
-                <div class="feed-item welcome">
-                    <div class="feed-icon">👋</div>
-                    <div class="feed-content">
-                        <div class="feed-text">Welcome to the Statistics Dashboard</div>
-                        <div class="feed-time">Real-time updates will appear here</div>
-                    </div>
-                </div>
+        <!-- The Human Impact -->
+        <section class="content-section">
+            <h2 class="section-title">The Ripple Effect of Shared Emotion</h2>
+            <div class="content-text">
+                <p>
+                    When someone shares their vulnerability, others find comfort in knowing they're not alone. When hope is 
+                    expressed, it lifts those who encounter it. <strong>Every emotion shared creates visible ripples</strong> 
+                    that extend far beyond the individual moment of expression.
+                </p>
+                <p>
+                    These statistics capture the beautiful truth that our emotions are not isolated experiences but living 
+                    forces that connect us. In sharing our hopes and sorrows, we create bonds of understanding that remind 
+                    us of our fundamental interconnectedness.
+                </p>
             </div>
         </section>
     </main>
 
-    <!-- Scripts -->
-    <script src="/socket.io/socket.io.js"></script>
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <p>&copy; 2025 Hopes & Sorrows. A space for shared human experience.</p>
+                <div class="footer-links">
+                    <a href="https://github.com/Pyr-0/Hopes-Sorrows_AI" target="_blank" rel="noopener noreferrer" class="footer-link">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 0C5.374 0 0 5.373 0 12 0 17.302 3.438 21.8 8.207 23.387c.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+                        </svg>
+                        GitHub
+                    </a>
+                    <a href="https://de.linkedin.com/in/miltonre" target="_blank" rel="noopener noreferrer" class="footer-link">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                        </svg>
+                        LinkedIn
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Load Stats Script -->
     <script src="{{ url_for('static', filename='js/stats.js') }}"></script>
 </body>
 </html> 
