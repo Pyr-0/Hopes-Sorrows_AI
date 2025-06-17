@@ -357,6 +357,7 @@ class HopesSorrowsApp {
             return;
         }
         
+        // RE-ENABLED: Main app recording system (this was working properly)
         this.elements.recordBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();

@@ -5,17 +5,33 @@
 
 class AudioRecorder {
     constructor() {
+        // Recording state
         this.isRecording = false;
         this.mediaRecorder = null;
+        this.mediaStream = null;
         this.audioChunks = [];
         this.audioContext = null;
         this.analyser = null;
         this.microphone = null;
         this.dataArray = null;
         this.animationId = null;
-        this.timer = null;
+        
+        // Timer state
+        this.maxDuration = 44; // 44 seconds max
+        this.timerInterval = null;
+        this.timerElement = null;
+        this.timerSeconds = null;
+        this.timerProgress = null;
         this.recordingStartTime = null;
-        this.maxDuration = 65; // seconds
+        
+        // UI elements
+        this.recordButton = null;
+        this.statusPanel = null;
+        this.processingPanel = null;
+        
+        // Session management
+        this.sessionId = this.generateSessionId();
+        this.analysisHandled = false;  // Prevent double handling
         
         // FIXED: Use main app's session ID if available, otherwise generate our own
         if (window.hopesSorrowsApp && window.hopesSorrowsApp.sessionId) {
@@ -31,12 +47,12 @@ class AudioRecorder {
         this.initializeElements();
         this.setupEventListeners();
         
-        console.log('🎤 AudioRecorder initialized');
+        console.log('🎤 AudioRecorder initialized (DISABLED - main app handles recording)');
     }
     
     initializeElements() {
         this.recordButton = document.getElementById('record-button');
-        this.timer = document.getElementById('timer');
+        this.timerElement = document.getElementById('timer');
         this.timerProgress = document.getElementById('timer-progress');
         this.timerSeconds = document.getElementById('timer-seconds');
         this.statusPanel = document.getElementById('recording-status');
@@ -45,8 +61,19 @@ class AudioRecorder {
     }
     
     setupEventListeners() {
+        // DISABLED: AudioRecorder event listeners to prevent conflicts with main app
+        // The main app's recording system is working properly and should be used instead
+        console.log('🚫 AudioRecorder event listeners disabled - main app handles recording');
+        
+        /*
         if (this.recordButton) {
-            this.recordButton.addEventListener('click', () => {
+            // Simple, direct event listener like the original working version
+            this.recordButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                console.log(`🎯 Record button clicked - current state: ${this.isRecording ? 'recording' : 'idle'}`);
+                
                 if (this.isRecording) {
                     this.stopRecording();
                 } else {
@@ -54,6 +81,7 @@ class AudioRecorder {
                 }
             });
         }
+        */
         
         // Error panel dismiss
         const errorDismiss = document.querySelector('.error-dismiss');
@@ -67,6 +95,8 @@ class AudioRecorder {
     
     async startRecording() {
         try {
+            console.log('🎤 Starting recording...');
+            
             // Request microphone access
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
@@ -77,12 +107,15 @@ class AudioRecorder {
                 }
             });
             
+            // Store the media stream for proper cleanup
+            this.mediaStream = stream;
+            
             // Setup audio context for visualization
             this.setupAudioContext(stream);
             
             // Setup MediaRecorder
             this.mediaRecorder = new MediaRecorder(stream, {
-                mimeType: this.getSupportedMimeType()
+                mimeType: 'audio/webm;codecs=opus'
             });
             
             this.audioChunks = [];
@@ -98,10 +131,10 @@ class AudioRecorder {
             };
             
             // Start recording
-            this.mediaRecorder.start(100); // Collect data every 100ms
+            this.mediaRecorder.start();
             this.isRecording = true;
             
-            // Update UI
+            // Update UI immediately
             this.updateUIForRecording();
             
             // Start timer
@@ -110,19 +143,31 @@ class AudioRecorder {
             // Start visualization
             this.startVisualization();
             
-            // Emit recording progress for live visualization
-            this.emitRecordingProgress();
+            console.log('✅ Recording started');
             
         } catch (error) {
-            console.error('Error starting recording:', error);
+            console.error('❌ Error starting recording:', error);
             this.showError('Unable to access microphone. Please check permissions and try again.');
         }
     }
     
     stopRecording() {
         if (this.mediaRecorder && this.isRecording) {
+            console.log('🛑 Stopping recording...');
+            
             this.mediaRecorder.stop();
             this.isRecording = false;
+            
+            // Stop all tracks
+            if (this.mediaRecorder.stream) {
+                this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            }
+            
+            // Also clean up our stored reference
+            if (this.mediaStream) {
+                this.mediaStream.getTracks().forEach(track => track.stop());
+                this.mediaStream = null;
+            }
             
             // Stop timer
             this.stopTimer();
@@ -135,6 +180,8 @@ class AudioRecorder {
             
             // Update UI
             this.updateUIForProcessing();
+            
+            console.log('✅ Recording stopped');
         }
     }
     
@@ -210,7 +257,7 @@ class AudioRecorder {
         
         this.recordingStartTime = Date.now();
         
-        this.timer = setInterval(() => {
+        this.timerInterval = setInterval(() => {
             timeLeft--;
             this.updateTimerDisplay(timeLeft);
             
@@ -221,9 +268,9 @@ class AudioRecorder {
     }
     
     stopTimer() {
-        if (this.timer) {
-            clearInterval(this.timer);
-            this.timer = null;
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
         }
     }
     
@@ -247,9 +294,14 @@ class AudioRecorder {
     }
     
     updateUIForRecording() {
-        // Update record button
+        // Update record button icon to stop square
         if (this.recordButton) {
             this.recordButton.classList.add('recording');
+            this.recordButton.innerHTML = `
+                <div class="record-stop-icon">
+                    <div class="stop-square"></div>
+                </div>
+            `;
             const recordText = this.recordButton.querySelector('.record-text');
             if (recordText) {
                 recordText.textContent = 'Recording...';
@@ -257,28 +309,37 @@ class AudioRecorder {
         }
         
         // Show timer
-        if (this.timer) {
-            this.timer.classList.add('active');
+        if (this.timerElement) {
+            this.timerElement.classList.add('active');
         }
         
-        // Update status
+        // Update status and start visual effects
         this.updateStatus('🎤 Recording your voice...', 'Share your thoughts and feelings freely');
+        this.startRecordingVisualEffects();
     }
     
     updateUIForProcessing() {
         // Hide timer
-        if (this.timer) {
-            this.timer.classList.remove('active');
+        if (this.timerElement) {
+            this.timerElement.classList.remove('active');
         }
         
-        // Reset record button
+        // Reset record button to circle icon
         if (this.recordButton) {
             this.recordButton.classList.remove('recording');
+            this.recordButton.innerHTML = `
+                <div class="record-icon">
+                    <div class="record-dot"></div>
+                </div>
+            `;
             const recordText = this.recordButton.querySelector('.record-text');
             if (recordText) {
                 recordText.textContent = 'Start Sharing';
             }
         }
+        
+        // Stop visual effects
+        this.stopRecordingVisualEffects();
         
         // Show processing
         if (this.statusPanel) {
@@ -293,14 +354,19 @@ class AudioRecorder {
         // Reset all UI elements to initial state
         if (this.recordButton) {
             this.recordButton.classList.remove('recording');
+            this.recordButton.innerHTML = `
+                <div class="record-icon">
+                    <div class="record-dot"></div>
+                </div>
+            `;
             const recordText = this.recordButton.querySelector('.record-text');
             if (recordText) {
                 recordText.textContent = 'Start Sharing';
             }
         }
         
-        if (this.timer) {
-            this.timer.classList.remove('active');
+        if (this.timerElement) {
+            this.timerElement.classList.remove('active');
         }
         
         if (this.statusPanel) {
@@ -310,6 +376,9 @@ class AudioRecorder {
         if (this.processingPanel) {
             this.processingPanel.classList.remove('active');
         }
+        
+        // Stop any remaining visual effects
+        this.stopRecordingVisualEffects();
         
         // Reset timer display
         this.updateTimerDisplay(this.maxDuration);
@@ -326,16 +395,190 @@ class AudioRecorder {
         if (statusSubtitle) statusSubtitle.textContent = subtitle;
     }
     
+    /**
+     * Start visual effects during recording
+     */
+    startRecordingVisualEffects() {
+        console.log('🎨 Starting recording visual effects...');
+        // Add voice-responsive wave animation to the background
+        this.createVoiceWaves();
+        
+        // Add pulse effect to record button
+        this.startRecordButtonPulse();
+    }
+
+    /**
+     * Stop visual effects when recording ends
+     */
+    stopRecordingVisualEffects() {
+        console.log('🎨 Stopping recording visual effects...');
+        // Remove wave animation
+        this.removeVoiceWaves();
+        
+        // Stop pulse effect
+        this.stopRecordButtonPulse();
+    }
+
+    /**
+     * Create voice-responsive animated waves during recording
+     */
+    createVoiceWaves() {
+        const container = document.getElementById('visualization-container');
+        if (!container) return;
+
+        // Create multiple wave lines that will oscillate
+        this.voiceWaves = [];
+        const waveCount = 5;
+        
+        for (let i = 0; i < waveCount; i++) {
+            const wave = document.createElement('div');
+            wave.className = 'voice-wave';
+            wave.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+                z-index: 1;
+                background: transparent;
+            `;
+            
+            // Create SVG for smooth wave rendering
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.style.cssText = `
+                width: 100%;
+                height: 100%;
+                position: absolute;
+                top: 0;
+                left: 0;
+            `;
+            
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.style.cssText = `
+                fill: none;
+                stroke: rgba(78, 205, 196, ${0.2 - i * 0.03});
+                stroke-width: ${2 + i};
+                stroke-linecap: round;
+            `;
+            
+            svg.appendChild(path);
+            wave.appendChild(svg);
+            container.appendChild(wave);
+            
+            this.voiceWaves.push({
+                element: wave,
+                path: path,
+                frequency: 0.02 + i * 0.005,
+                amplitude: 25 + i * 8,
+                phase: i * Math.PI / 2.5,
+                baseY: window.innerHeight * (0.45 + i * 0.02)
+            });
+        }
+        
+        // Start wave animation
+        this.animateVoiceWaves();
+    }
+
+    /**
+     * Animate voice waves continuously during recording
+     */
+    animateVoiceWaves() {
+        if (!this.voiceWaves || this.voiceWaves.length === 0) return;
+        
+        let time = 0;
+        
+        this.voiceWaveInterval = setInterval(() => {
+            time += 1;
+            
+            this.voiceWaves.forEach((wave, index) => {
+                const voiceIntensity = 0.5 + 0.5 * Math.sin(time * 0.1 + index);
+                
+                const points = [];
+                const width = window.innerWidth;
+                const segments = 50;
+                
+                for (let i = 0; i <= segments; i++) {
+                    const x = (i / segments) * width;
+                    const progress = i / segments;
+                    
+                    const primaryWave = Math.sin(time * wave.frequency + progress * Math.PI * 2 + wave.phase);
+                    const harmonicWave = Math.sin(time * wave.frequency * 2 + progress * Math.PI * 4 + wave.phase) * 0.3;
+                    const y = wave.baseY + (primaryWave + harmonicWave) * wave.amplitude * voiceIntensity;
+                    
+                    points.push(`${x},${y}`);
+                }
+                
+                let pathData = `M ${points[0]}`;
+                for (let i = 1; i < points.length; i++) {
+                    pathData += ` L ${points[i]}`;
+                }
+                
+                wave.path.setAttribute('d', pathData);
+            });
+        }, 16); // ~60 FPS
+    }
+
+    /**
+     * Remove recording waves
+     */
+    removeVoiceWaves() {
+        if (this.voiceWaveInterval) {
+            clearInterval(this.voiceWaveInterval);
+            this.voiceWaveInterval = null;
+        }
+        
+        if (this.voiceWaves) {
+            this.voiceWaves.forEach(wave => {
+                if (wave.element && wave.element.parentNode) {
+                    wave.element.remove();
+                }
+            });
+            this.voiceWaves = [];
+        }
+        
+        // Clean up any remaining wave elements
+        const remainingWaves = document.querySelectorAll('.voice-wave');
+        remainingWaves.forEach(wave => wave.remove());
+    }
+
+    /**
+     * Start record button pulse animation
+     */
+    startRecordButtonPulse() {
+        if (!this.recordButton) return;
+        
+        console.log('🟦 Adding pulse animation to record button');
+        this.recordButton.classList.add('pulsing');
+    }
+
+    /**
+     * Stop record button pulse animation
+     */
+    stopRecordButtonPulse() {
+        if (!this.recordButton) return;
+        
+        console.log('🟦 Removing pulse animation from record button');
+        this.recordButton.classList.remove('pulsing');
+    }
+    
     async processRecording() {
         try {
+            console.log('⚙️ Processing recording...');
+            
+            // Show processing panel immediately
+            if (this.processingPanel) {
+                this.processingPanel.classList.add('active');
+            }
+            
             // Create blob from audio chunks
             const audioBlob = new Blob(this.audioChunks, { 
-                type: this.getSupportedMimeType() 
+                type: 'audio/webm' 
             });
             
             // Create form data for upload
             const formData = new FormData();
-            formData.append('audio', audioBlob, `recording_${this.sessionId}.wav`);
+            formData.append('audio', audioBlob, 'recording.webm');
             formData.append('session_id', this.sessionId);
             
             // Upload and analyze
@@ -355,12 +598,12 @@ class AudioRecorder {
                     hasSummary: !!result.processing_summary
                 });
                 
-                // Hide processing panel first
+                // Hide processing panel
                 if (this.processingPanel) {
                     this.processingPanel.classList.remove('active');
                 }
                 
-                // ENHANCED: Ensure we have blobs before proceeding
+                // Ensure we have blobs before proceeding
                 if (!result.blobs || result.blobs.length === 0) {
                     console.warn('⚠️ No blobs in result - this indicates an analysis issue');
                     this.showError('Analysis completed but no emotions were detected. Please try speaking more clearly or for longer.');
@@ -377,7 +620,7 @@ class AudioRecorder {
                     console.warn('⚠️ Main app not available, trying direct analysis confirmation');
                     console.log('🔍 Available on window:', Object.keys(window).filter(k => k.includes('hopes') || k.includes('App')));
                     
-                    // FIXED: Only retry if main app wasn't available initially
+                    // Only retry if main app wasn't available initially
                     setTimeout(() => {
                         if (!analysisHandled && window.hopesSorrowsApp && window.hopesSorrowsApp.handleAnalysisComplete) {
                             console.log('🔄 Retry successful - main app is now available');
@@ -395,7 +638,7 @@ class AudioRecorder {
                 // Reset UI state after a delay to let analysis panel show
                 setTimeout(() => {
                     this.resetToInitialState();
-                }, 2000); // Increased delay
+                }, 2000);
                 
                 // Generate new session ID for next recording
                 this.sessionId = this.generateSessionId();
@@ -410,7 +653,7 @@ class AudioRecorder {
             }
             
         } catch (error) {
-            console.error('Error processing recording:', error);
+            console.error('❌ Error processing recording:', error);
             this.showError('Failed to upload your recording. Please check your connection and try again.');
         }
     }
@@ -434,26 +677,6 @@ class AudioRecorder {
         if (this.errorPanel) {
             this.errorPanel.classList.remove('active');
         }
-    }
-    
-    emitRecordingProgress() {
-        if (!this.isRecording) return;
-        
-        // Emit progress for live visualization effects
-        if (window.socket) {
-            window.socket.emit('recording_progress', {
-                sessionId: this.sessionId,
-                isRecording: true,
-                timeRemaining: this.maxDuration
-            });
-        }
-        
-        // Continue emitting while recording
-        setTimeout(() => {
-            if (this.isRecording) {
-                this.emitRecordingProgress();
-            }
-        }, 1000);
     }
     
     getSupportedMimeType() {
@@ -607,9 +830,50 @@ class AudioRecorder {
     
     // Public methods for external control
     forceStop() {
+        console.log('🚨 Force stopping recording...');
         if (this.isRecording) {
             this.stopRecording();
         }
+        // Additional cleanup for edge cases
+        this.cleanupAllResources();
+    }
+    
+    cleanupAllResources() {
+        console.log('🧹 Cleaning up all audio resources...');
+        
+        // Stop media stream tracks
+        if (this.mediaStream) {
+            this.mediaStream.getTracks().forEach(track => {
+                if (track.readyState !== 'ended') {
+                    console.log(`  Force stopping track: ${track.kind}`);
+                    track.stop();
+                }
+            });
+            this.mediaStream = null;
+        }
+        
+        // Stop media recorder
+        if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+            console.log('  Force stopping media recorder');
+            this.mediaRecorder.stop();
+        }
+        this.mediaRecorder = null;
+        
+        // Clean up audio context
+        this.cleanupAudioContext();
+        
+        // Stop timers and animations
+        this.stopTimer();
+        this.stopVisualization();
+        
+        // Stop visual effects
+        this.stopRecordingVisualEffects();
+        
+        // Reset state
+        this.isRecording = false;
+        this.audioChunks = [];
+        
+        console.log('✅ All resources cleaned up');
     }
     
     isCurrentlyRecording() {
