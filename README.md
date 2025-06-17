@@ -55,28 +55,43 @@ Final Size = Base Size (10px) +
 
 Each emotion blob exhibits realistic physics behavior that reflects psychological principles:
 
-#### Movement Mechanics
+#### Advanced Social Physics Engine
 
 1. **🌊 Organic Floating**: Sine/cosine wave patterns scaled by emotional energy
 2. **⚖️ Gravitational Forces**: Hope naturally rises (↑), sorrow naturally falls (↓)
 3. **🤝 Social Dynamics**: Emotions attract/repel based on psychological compatibility
 4. **💥 Collision Physics**: Mass-based elastic collisions with proper impulse calculation
-5. **🛡️ Boundary Forces**: Gentle containment to keep emotions visible
+5. **🛡️ Boundary Forces**: Intelligent edge detection with corner escape mechanisms
 6. **🌊 Wave Reactions**: Collective response when new emotions appear
+7. **🎯 Nudge System**: Click anywhere to gently push nearby blobs with realistic force
+8. **🚨 Emergency Recovery**: Automatic teleportation for completely stuck blobs
 
-#### Behavioral Personalities
+#### Social Behavioral Matrix
 
-Each emotion category has distinct social tendencies:
+Each emotion category has distinct social tendencies based on psychological research:
 
-- **Hope** (0.7): Seeks companionship, creates positive social energy
-- **Transformative** (0.5): Moderate social interaction, focused energy
-- **Ambivalent** (0.1): Uncertain about social contact, hesitant movement
-- **Reflective** (-0.1): Prefers contemplative solitude
-- **Sorrow** (-0.3): Seeks gentle comfort but maintains distance
+- **Hope** (+0.7): Seeks companionship, creates positive social energy, rises upward
+- **Transformative** (+0.5): Moderate social interaction, focused energy, dynamic movement
+- **Ambivalent** (+0.1): Uncertain about social contact, hesitant and unpredictable movement
+- **Reflective** (-0.1): Prefers contemplative solitude, stable floating behavior
+- **Sorrow** (-0.3): Seeks gentle comfort while maintaining distance, downward drift
+
+#### Physics Constants (Optimized for Serenity)
+
+```javascript
+gravity: 0.002          // Emotional polarity effect strength
+friction: 0.998         // High damping for calm movement
+repulsionForce: 0.1     // Gentle collision separation
+attractionForce: 0.02   // Subtle social magnetism
+collisionDamping: 0.3   // Reduced bounce for soft interactions
+maxSpeed: 1.0           // Ultra-calm movement limit (px/frame)
+```
 
 #### Mass & Physics Properties
 
 - **Mass Calculation**: `(Base Size ÷ 10) + Intensity × 2 + |Score| × 1.5`
+- **Hit Radius**: `max(blob.size × 3, 40px)` for enhanced click detection
+- **Social Range**: 100px interaction radius for emotional compatibility
 - **Velocity Limits**: 3px/frame maximum to prevent chaotic movement
 - **Collision Response**: Larger emotions have more inertia, smaller emotions bounce more
 - **Social Range**: 200px interaction radius for emotional influence
@@ -281,6 +296,99 @@ For detailed technical documentation and comprehensive guides, see the [`docs/`]
 - `GET /api/get_all_blobs`: Retrieve all emotion data
 - `POST /upload_audio`: Process voice recordings
 - `DELETE /api/clear_visualization`: Reset visualization
+
+## 🧪 **Testing & Component Usage**
+
+### 🔬 **Individual Component Testing**
+
+The project supports testing individual components independently for research and development:
+
+#### **CLI Sentiment Analysis**
+```bash
+# Interactive CLI mode for testing
+python main.py cli
+
+# Single text analysis
+python scripts/analyze_sentiment.py --text "I feel hopeful about tomorrow"
+
+# File-based batch analysis
+python scripts/analyze_sentiment.py --file emotional_texts.txt
+
+# Interactive testing mode
+python scripts/analyze_sentiment.py --interactive
+```
+
+#### **Transformer-Only Analysis**
+```python
+from src.hopes_sorrows.analysis.sentiment import analyze_sentiment
+result = analyze_sentiment("I will overcome these challenges")
+# Fast, consistent emotion classification using DistilRoBERTa
+```
+
+#### **LLM-Enhanced Analysis** (Requires OpenAI API Key)
+```python
+from src.hopes_sorrows.analysis.sentiment import analyze_sentiment_llm
+result = analyze_sentiment_llm("The situation is complex and bittersweet")
+# Deeper contextual understanding with detailed explanations
+```
+
+#### **Combined Analysis** (Recommended)
+```python
+from src.hopes_sorrows.analysis.sentiment import analyze_sentiment_combined
+result = analyze_sentiment_combined("I'm hopeful but also scared", use_llm=True)
+# Best of both: transformer speed + LLM depth
+```
+
+#### **Audio Processing Pipeline**
+```python
+from src.hopes_sorrows.analysis.audio import analyze_audio
+result = analyze_audio("path/to/recording.wav")
+# Full pipeline: speech-to-text + sentiment analysis + speaker ID
+```
+
+### 🌐 **Web Application Modes**
+
+#### **Development Server**
+```bash
+# Full development mode with hot reload
+python scripts/run_web.py
+
+# Alternative: Flask CLI
+export FLASK_APP=src.hopes_sorrows.web.api.app
+export FLASK_ENV=development
+flask run --debug
+```
+
+#### **Production Deployment**
+```bash
+# Using Gunicorn WSGI server
+gunicorn -w 4 -b 0.0.0.0:8000 src.hopes_sorrows.web.api.app:app
+
+# With WebSocket support (recommended)
+gunicorn -w 1 -k eventlet -b 0.0.0.0:8000 src.hopes_sorrows.web.api.app:app
+```
+
+### 🗄️ **Database Management**
+```bash
+# Initialize database schema
+python scripts/setup_db.py
+
+# Clear duplicate emotional blobs
+python scripts/clear_duplicate_blobs.py
+
+# Manual database inspection
+sqlite3 data/databases/hopes_sorrows.db
+```
+
+### 🧪 **Test Suite**
+```bash
+# Run all tests
+python -m pytest tests/
+
+# Run specific test categories
+python -m pytest tests/test_classification.py
+python -m pytest tests/ -v  # Verbose output
+```
 
 ## 🛠️ Development
 
