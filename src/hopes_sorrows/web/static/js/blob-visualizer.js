@@ -24,18 +24,25 @@ class BlobEmotionVisualizer {
         this.hoveredBlob = null;
         this.currentTooltip = null;
         
-        // Sentiment color palettes (matching CSS variables)
+        // Sentiment color palettes (updated with provided color scheme)
         this.sentimentColors = {
-            hope: [1.0, 0.84, 0.0],              // Gold
-            sorrow: [0.29, 0.56, 0.89],          // Blue
-            transformative: [0.61, 0.35, 0.71],  // Purple
-            ambivalent: [0.91, 0.30, 0.24],      // Red-Orange
-            reflective_neutral: [0.58, 0.65, 0.65] // Gray
+            hope: [1.0, 0.85, 0.24],              // #FFD93D (warm yellow)
+            sorrow: [0.42, 0.45, 1.0],            // #6B73FF (soft blue)
+            transformative: [1.0, 0.58, 0.0],     // #FF9500 (orange)
+            ambivalent: [0.8, 0.55, 0.86],        // #CC8B86 (muted rose - better for ambivalence)
+            reflective_neutral: [0.58, 0.65, 0.65] // #95A5A6 (gray)
         };
         
         // Background particles for ethereal effect
         this.particles = [];
         this.numParticles = 150;
+        
+        // Physics simulation properties - Ultra calm settings
+        this.gravity = 0.002;  // Further reduced from 0.005
+        this.friction = 0.998; // Increased friction for more damping
+        this.repulsionForce = 0.1; // Further reduced from 0.2
+        this.attractionForce = 0.02; // Further reduced from 0.05
+        this.collisionDamping = 0.3; // New: reduce collision bounce
         
         // Animation properties
         this.isInitialized = false;
@@ -145,6 +152,10 @@ class BlobEmotionVisualizer {
                 } else {
                     console.log('🚫 Click blocked by UI element');
                 }
+                
+                // Always create subtle ripple and nudge nearby blobs on canvas click
+                self.createCanvasRipple(p.mouseX, p.mouseY);
+                self.nudgeNearbyBlobs(p.mouseX, p.mouseY);
             };
             
             p.mouseMoved = () => {
@@ -209,9 +220,18 @@ class BlobEmotionVisualizer {
     
     /**
      * Update blob physics and animations
+     * 
+     * CURRENT MOVEMENT SYSTEM EXPLANATION:
+     * 1. Basic floating motion: Sine wave oscillation for organic feel
+     * 2. Social forces: Blobs attract/repel based on emotion type
+     * 3. Collision detection: Physics-based collisions with mass and impulse
+     * 4. Gravity effects: Score-based gravitational attraction (hope=upward, sorrow=downward)
+     * 5. Boundary forces: Soft boundaries to keep blobs on screen
+     * 6. Wave reactions: All blobs react when new ones are added
      */
     updateBlobPhysics() {
-        this.blobs.forEach(blob => {
+        // Update each blob's physics
+        this.blobs.forEach((blob, index) => {
             // Update visibility based on category filters
             if (!this.visibleCategories.has(blob.category)) {
                 blob.targetOpacity = 0;
@@ -222,19 +242,62 @@ class BlobEmotionVisualizer {
             // Smooth opacity transition
             blob.opacity += (blob.targetOpacity - blob.opacity) * 0.1;
             
-            // Gentle floating motion
-            blob.floatOffset += 0.02;
-            blob.y += Math.sin(blob.floatOffset) * 0.3;
+            // Skip physics for invisible blobs
+            if (blob.opacity <= 0.01) return;
             
-            // Subtle horizontal drift
-            blob.x += blob.vx;
-            blob.y += blob.vy;
+            // Reset acceleration for this frame
+            blob.acceleration.x = 0;
+            blob.acceleration.y = 0;
             
-            // Boundary checking with wrapping
-            if (blob.x < -blob.size) blob.x = window.innerWidth + blob.size;
-            if (blob.x > window.innerWidth + blob.size) blob.x = -blob.size;
-            if (blob.y < -blob.size) blob.y = window.innerHeight + blob.size;
-            if (blob.y > window.innerHeight + blob.size) blob.y = -blob.size;
+            // 1. Apply floating motion (base organic movement)
+            blob.floatOffset += 0.01 * blob.energyLevel;
+            const floatForce = {
+                x: Math.sin(blob.floatOffset) * 0.05,
+                y: Math.cos(blob.floatOffset * 1.3) * 0.05
+            };
+            this.applyForce(blob, floatForce);
+            
+            // 2. Apply gravity based on emotional score (reduced magnitude)
+            const gravityForce = {
+                x: 0,
+                y: blob.score * this.gravity * blob.mass * 0.5
+            };
+            this.applyForce(blob, gravityForce);
+            
+            // 3. Apply social forces (emotional interactions)
+            const socialForce = this.calculateSocialForces(blob, this.blobs);
+            this.applyForce(blob, socialForce);
+            
+            // 4. Apply boundary forces
+            this.applyBoundaryForces(blob);
+            
+            // 5. Check collisions with other blobs
+            for (let j = index + 1; j < this.blobs.length; j++) {
+                if (this.blobs[j].opacity > 0.01) {
+                    this.checkCollision(blob, this.blobs[j]);
+                }
+            }
+            
+            // 6. Apply friction
+            blob.velocity.x *= this.friction;
+            blob.velocity.y *= this.friction;
+            
+            // 7. Update velocity with acceleration
+            blob.velocity.x += blob.acceleration.x;
+            blob.velocity.y += blob.acceleration.y;
+            
+            // 8. Limit velocity
+            this.limitVelocity(blob);
+            
+            // 9. Update position
+            blob.x += blob.velocity.x;
+            blob.y += blob.velocity.y;
+            
+            // 10. Hard boundary checks (fallback)
+            if (blob.x < 0) blob.x = 0;
+            if (blob.x > window.innerWidth) blob.x = window.innerWidth;
+            if (blob.y < 0) blob.y = 0;
+            if (blob.y > window.innerHeight) blob.y = window.innerHeight;
         });
     }
     
@@ -289,49 +352,69 @@ class BlobEmotionVisualizer {
             
             const color = this.sentimentColors[blob.category] || [1, 1, 1];
             
-            // Draw outer glow (largest)
+            // Create radial gradient for 3D effect
+            const gradient = p.drawingContext.createRadialGradient(
+                blob.x, blob.y, 0,
+                blob.x, blob.y, blob.size * 1.5  // Adjusted for smaller sizes
+            );
+            
+            // Gradient stops for 3D volumetric effect
+            const baseColor = `rgba(${color[0] * 255}, ${color[1] * 255}, ${color[2] * 255}`;
+            gradient.addColorStop(0, `${baseColor}, ${blob.opacity * 0.9})`); // Bright center
+            gradient.addColorStop(0.3, `${baseColor}, ${blob.opacity * 0.7})`); // Mid brightness
+            gradient.addColorStop(0.7, `${baseColor}, ${blob.opacity * 0.4})`); // Dimmer edge
+            gradient.addColorStop(1, `${baseColor}, 0)`); // Transparent edge
+            
+            // Draw outer glow (adjusted for smaller blobs)
             p.fill(
                 color[0] * 255,
                 color[1] * 255,
                 color[2] * 255,
-                blob.opacity * 15
+                blob.opacity * 12  // Reduced opacity for subtlety
             );
             p.noStroke();
-            p.circle(blob.x, blob.y, blob.size * 3);
+            p.circle(blob.x, blob.y, blob.size * 2.5); // Reduced multiplier
             
             // Draw middle glow
             p.fill(
                 color[0] * 255,
                 color[1] * 255,
                 color[2] * 255,
-                blob.opacity * 30
+                blob.opacity * 25
             );
-            p.circle(blob.x, blob.y, blob.size * 2);
+            p.circle(blob.x, blob.y, blob.size * 1.8);
             
-            // Draw inner glow
-            p.fill(
-                color[0] * 255,
-                color[1] * 255,
-                color[2] * 255,
-                blob.opacity * 60
-            );
-            p.circle(blob.x, blob.y, blob.size * 1.5);
+            // Draw inner glow with gradient
+            p.drawingContext.fillStyle = gradient;
+            p.drawingContext.beginPath();
+            p.drawingContext.arc(blob.x, blob.y, blob.size * 1.2, 0, 2 * Math.PI);
+            p.drawingContext.fill();
             
-            // Draw blob core
-            p.fill(
-                color[0] * 255,
-                color[1] * 255,
-                color[2] * 255,
-                blob.opacity * 200
+            // Draw blob core with enhanced gradient
+            const coreGradient = p.drawingContext.createRadialGradient(
+                blob.x - blob.size * 0.2, blob.y - blob.size * 0.2, 0,
+                blob.x, blob.y, blob.size * 0.8  // Adjusted for smaller core
             );
-            p.circle(blob.x, blob.y, blob.size);
+            
+            // Create more pronounced 3D effect with light source
+            coreGradient.addColorStop(0, `${baseColor}, ${blob.opacity * 1.0})`); // Highlight
+            coreGradient.addColorStop(0.4, `${baseColor}, ${blob.opacity * 0.8})`); // Mid-tone
+            coreGradient.addColorStop(1, `rgba(${color[0] * 200}, ${color[1] * 200}, ${color[2] * 200}, ${blob.opacity * 0.6})`); // Shadow
+            
+            p.drawingContext.fillStyle = coreGradient;
+            p.drawingContext.beginPath();
+            p.drawingContext.arc(blob.x, blob.y, blob.size * 0.8, 0, 2 * Math.PI);
+            p.drawingContext.fill();
+            
+            // Reset fill style for other elements
+            p.fill(255);
             
             // Draw selection indicator
             if (this.selectedBlobs.has(blob.id)) {
                 p.stroke(255, 255, 255, blob.opacity * 255);
                 p.strokeWeight(2);
                 p.noFill();
-                p.circle(blob.x, blob.y, blob.size + 10);
+                p.circle(blob.x, blob.y, blob.size + 8); // Adjusted for smaller blobs
             }
             
             // Draw hover effect
@@ -339,10 +422,19 @@ class BlobEmotionVisualizer {
                 p.stroke(255, 255, 255, 150);
                 p.strokeWeight(1);
                 p.noFill();
-                p.circle(blob.x, blob.y, blob.size + 5);
+                p.circle(blob.x, blob.y, blob.size + 4);
                 
                 // Change cursor
                 p.canvas.style.cursor = 'pointer';
+            }
+            
+            // Draw special highlight for new blobs (aquamarine)
+            if (blob.isNewBlob && (Date.now() - blob.addedTime) < 10000) {
+                const pulseIntensity = Math.sin((Date.now() - blob.addedTime) * 0.005) * 0.5 + 0.5;
+                p.stroke(78, 205, 196, pulseIntensity * 180); // Aquamarine color
+                p.strokeWeight(2);
+                p.noFill();
+                p.circle(blob.x, blob.y, blob.size + 10 + pulseIntensity * 3); // Smaller pulse
             }
         });
         
@@ -564,6 +656,109 @@ class BlobEmotionVisualizer {
     }
     
     /**
+     * Create subtle canvas ripple effect for general clicks
+     */
+    createCanvasRipple(x, y) {
+        this.ripples.push({
+            x: x,
+            y: y,
+            radius: 0,
+            maxRadius: 80,
+            opacity: 0.3, // More subtle
+            startTime: Date.now(),
+            isCanvasRipple: true
+        });
+    }
+    
+    /**
+     * Nudge nearby blobs away from click location to help unstick clusters
+     */
+    nudgeNearbyBlobs(clickX, clickY) {
+        const nudgeRadius = 200; // Increased radius of effect for wider impact
+        const baseNudgeStrength = 8.0; // Significantly increased base force strength
+        
+        this.blobs.forEach(blob => {
+            const dx = blob.x - clickX;
+            const dy = blob.y - clickY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance > 0 && distance < nudgeRadius) {
+                // Calculate nudge force (stronger for closer blobs and smaller blobs)
+                const proximityStrength = (nudgeRadius - distance) / nudgeRadius;
+                const sizeRatio = blob.size / 20; // Normalize against base size
+                const sizeMultiplier = 2.5 / (sizeRatio + 0.3); // Much stronger for smaller blobs
+                
+                // Extra power for very close blobs (within 50px)
+                const closeBonus = distance < 50 ? 2.5 : 1.0;
+                const force = proximityStrength * baseNudgeStrength * sizeMultiplier * closeBonus;
+                
+                // Apply force away from click
+                const forceX = (dx / distance) * force;
+                const forceY = (dy / distance) * force;
+                
+                // Apply the nudge with immediate velocity boost
+                this.applyForce(blob, { x: forceX, y: forceY });
+                
+                // Add much stronger immediate velocity for instant movement
+                blob.velocity.x += forceX * 0.6; // Increased from 0.3
+                blob.velocity.y += forceY * 0.6;
+                
+                // Add stronger random component to break up perfect symmetry
+                const randomX = (Math.random() - 0.5) * 1.5; // Increased randomness
+                const randomY = (Math.random() - 0.5) * 1.5;
+                this.applyForce(blob, { x: randomX, y: randomY });
+                
+                // Special handling for blobs very close to corners
+                const isNearCorner = this.isBlobNearCorner(blob);
+                if (isNearCorner) {
+                    const centerX = window.innerWidth * 0.5;
+                    const centerY = window.innerHeight * 0.55;
+                    const toCenterX = centerX - blob.x;
+                    const toCenterY = centerY - blob.y;
+                    const centerDistance = Math.sqrt(toCenterX * toCenterX + toCenterY * toCenterY);
+                    
+                    if (centerDistance > 0) {
+                        // Extra strong center pull for corner blobs
+                        const centerForce = {
+                            x: (toCenterX / centerDistance) * force * 0.8, // Increased from 0.5
+                            y: (toCenterY / centerDistance) * force * 0.8
+                        };
+                        this.applyForce(blob, centerForce);
+                        blob.velocity.x += centerForce.x * 0.4; // Increased from 0.2
+                        blob.velocity.y += centerForce.y * 0.4;
+                    }
+                }
+                
+                // Add velocity damping reset for stuck blobs (very low velocity)
+                const currentSpeed = Math.sqrt(blob.velocity.x * blob.velocity.x + blob.velocity.y * blob.velocity.y);
+                if (currentSpeed < 0.1) {
+                    // Give stuck blobs a strong random kick
+                    const kickX = (Math.random() - 0.5) * 4.0;
+                    const kickY = (Math.random() - 0.5) * 4.0;
+                    blob.velocity.x += kickX;
+                    blob.velocity.y += kickY;
+                    console.log('🚀 Gave stuck blob a strong kick!');
+                }
+            }
+        });
+        
+        console.log('🌊 Nudged nearby blobs from click at', clickX, clickY, 'with ULTRA-enhanced force');
+    }
+    
+    /**
+     * Check if blob is near a corner
+     */
+    isBlobNearCorner(blob) {
+        const cornerMargin = 100;
+        const topMargin = 80;
+        
+        return (blob.x < cornerMargin && blob.y < cornerMargin + topMargin) ||
+               (blob.x > window.innerWidth - cornerMargin && blob.y < cornerMargin + topMargin) ||
+               (blob.x < cornerMargin && blob.y > window.innerHeight - cornerMargin) ||
+               (blob.x > window.innerWidth - cornerMargin && blob.y > window.innerHeight - cornerMargin);
+    }
+    
+    /**
      * Draw ripple effects
      */
     drawRipples() {
@@ -578,10 +773,18 @@ class BlobEmotionVisualizer {
             
             if (progress < 1) {
                 ripple.radius = ripple.maxRadius * progress;
-                ripple.opacity = 1 - progress;
+                const currentOpacity = ripple.opacity * (1 - progress);
                 
-                p.stroke(255, 255, 255, ripple.opacity * 100);
-                p.strokeWeight(2);
+                if (ripple.isCanvasRipple) {
+                    // Subtle canvas ripple - aquamarine color
+                    p.stroke(78, 205, 196, currentOpacity * 80);
+                    p.strokeWeight(1);
+                } else {
+                    // Regular blob interaction ripple - white
+                    p.stroke(255, 255, 255, currentOpacity * 100);
+                    p.strokeWeight(2);
+                }
+                
                 p.noFill();
                 p.circle(ripple.x, ripple.y, ripple.radius * 2);
             }
@@ -671,6 +874,7 @@ class BlobEmotionVisualizer {
             x: Math.random() * window.innerWidth,
             y: Math.random() * window.innerHeight,
             size: this.calculateBlobSize(blobData),
+            mass: this.calculateBlobMass(blobData),
             category: blobData.category || 'reflective_neutral',
             score: blobData.score || 0,
             confidence: blobData.confidence || 0,
@@ -686,10 +890,29 @@ class BlobEmotionVisualizer {
             targetOpacity: 1,
             floatOffset: Math.random() * Math.PI * 2,
             
-            // Physics properties
-            vx: (Math.random() - 0.5) * 0.5,
-            vy: (Math.random() - 0.5) * 0.5
+            // Enhanced physics properties
+            velocity: {
+                x: (Math.random() - 0.5) * 0.5,  // Reduced from 2 for calmer start
+                y: (Math.random() - 0.5) * 0.5
+            },
+            acceleration: {
+                x: 0,
+                y: 0
+            },
+            maxSpeed: 1.0,  // Further reduced from 1.5 for ultra-calm movement
+            radius: 0,    // Will be set after calculation
+            
+            // Behavioral properties based on emotion
+            socialTendency: this.calculateSocialTendency(blobData.category),
+            energyLevel: blobData.intensity || 0.5,
+            
+            // Mark as new for highlighting
+            isNewBlob: true,
+            addedTime: Date.now()
         };
+        
+        // Set radius based on size for collision detection
+        blob.radius = blob.size + 5;
         
         // Remove oldest blob if we exceed max
         if (this.blobs.length >= this.maxBlobs) {
@@ -697,6 +920,11 @@ class BlobEmotionVisualizer {
         }
         
         this.blobs.push(blob);
+        
+        // Create wave effect for existing blobs when new blob arrives
+        if (this.blobs.length > 1) {
+            this.createNewBlobWave(blob);
+        }
         
         console.log('🫧 Added blob:', blob);
         console.log('🫧 Total blobs now:', this.blobs.length);
@@ -706,12 +934,41 @@ class BlobEmotionVisualizer {
     
     /**
      * Calculate blob size based on data
+     * 
+     * SCORING SYSTEM EXPLANATION:
+     * - score: Sentiment polarity (-1 to 1, where -1=very negative, 0=neutral, 1=very positive)
+     * - intensity: Emotional strength (0 to 1, how strong the emotion is)
+     * - confidence: AI certainty (0 to 1, how confident the classification is)
+     * 
+     * Size factors: intensity > confidence > absolute score value
      */
     calculateBlobSize(blobData) {
-        const baseSize = 20;
-        const intensityMultiplier = (blobData.intensity || 0.5) * 30;
-        const confidenceMultiplier = (blobData.confidence || 0.5) * 20;
-        return Math.max(15, Math.min(50, baseSize + intensityMultiplier + confidenceMultiplier));
+        const baseSize = 10;  // Minimal base size
+        
+        // Primary factor: emotional intensity (0-1) 
+        const intensityMultiplier = (blobData.intensity || 0.5) * 12;
+        
+        // Secondary factor: classification confidence (0-1)
+        const confidenceMultiplier = (blobData.confidence || 0.5) * 6;
+        
+        // Tertiary factor: absolute score value (strength regardless of polarity)
+        const scoreMultiplier = Math.abs(blobData.score || 0) * 8;
+        
+        const finalSize = baseSize + intensityMultiplier + confidenceMultiplier + scoreMultiplier;
+        
+        // Clamp between 8 and 30 pixels
+        return Math.max(8, Math.min(30, finalSize));
+    }
+
+    /**
+     * Calculate blob mass for physics simulation
+     */
+    calculateBlobMass(blobData) {
+        const baseSize = this.calculateBlobSize(blobData);
+        // Mass influences physics behavior - larger/more intense emotions have more "weight"
+        const intensityFactor = (blobData.intensity || 0.5) * 2;
+        const scoreFactor = Math.abs(blobData.score || 0) * 1.5;
+        return (baseSize / 10) + intensityFactor + scoreFactor;
     }
     
     /**
@@ -879,6 +1136,306 @@ class BlobEmotionVisualizer {
         this.ripples = [];
         this.selectedBlobs.clear();
         console.log('💥 Blob visualizer destroyed');
+    }
+
+    /**
+     * Get blob by ID
+     */
+    getBlobById(id) {
+        return this.blobs.find(blob => blob.id === id);
+    }
+
+    /**
+     * Get all blobs
+     */
+    getBlobs() {
+        return this.blobs;
+    }
+
+    /**
+     * Get new blobs (added in the last few seconds)
+     */
+    getNewBlobs() {
+        const currentTime = Date.now();
+        return this.blobs.filter(blob => blob.isNewBlob && (currentTime - blob.addedTime) < 30000); // 30 seconds
+    }
+
+    /**
+     * Clear new blob markers
+     */
+    clearNewBlobMarkers() {
+        this.blobs.forEach(blob => {
+            blob.isNewBlob = false;
+        });
+    }
+
+    /**
+     * Calculate social tendency based on emotion category
+     * Different emotions have different social behaviors
+     */
+    calculateSocialTendency(category) {
+        const tendencies = {
+            hope: 0.7,           // Hopeful emotions seek others
+            sorrow: -0.3,        // Sorrowful emotions prefer solitude but may seek gentle comfort
+            transformative: 0.5,  // Transformative emotions have moderate social needs
+            ambivalent: 0.1,     // Ambivalent emotions are uncertain about social contact
+            reflective_neutral: -0.1  // Reflective emotions prefer contemplation
+        };
+        return tendencies[category] || 0;
+    }
+
+    /**
+     * Apply physics forces to a blob
+     */
+    applyForce(blob, force) {
+        // F = ma, so a = F/m
+        blob.acceleration.x += force.x / blob.mass;
+        blob.acceleration.y += force.y / blob.mass;
+    }
+
+    /**
+     * Limit velocity to max speed
+     */
+    limitVelocity(blob) {
+        const speed = Math.sqrt(blob.velocity.x * blob.velocity.x + blob.velocity.y * blob.velocity.y);
+        if (speed > blob.maxSpeed) {
+            blob.velocity.x = (blob.velocity.x / speed) * blob.maxSpeed;
+            blob.velocity.y = (blob.velocity.y / speed) * blob.maxSpeed;
+        }
+    }
+
+    /**
+     * Check collision between two blobs
+     */
+    checkCollision(blob1, blob2) {
+        const dx = blob2.x - blob1.x;
+        const dy = blob2.y - blob1.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const minDistance = blob1.radius + blob2.radius;
+
+        if (distance < minDistance && distance > 0) {
+            // Normalize collision vector
+            const nx = dx / distance;
+            const ny = dy / distance;
+
+            // Stronger separation to prevent sticking
+            const overlap = minDistance - distance;
+            const separationStrength = 0.08; // Increased from 0.02 for stronger separation
+            
+            // Add extra separation for very close blobs
+            const proximityMultiplier = distance < (minDistance * 0.8) ? 2.0 : 1.0;
+            
+            // Gradual separation forces with increased strength
+            const separationForce1 = {
+                x: -nx * overlap * separationStrength * proximityMultiplier / blob1.mass,
+                y: -ny * overlap * separationStrength * proximityMultiplier / blob1.mass
+            };
+            
+            const separationForce2 = {
+                x: nx * overlap * separationStrength * proximityMultiplier / blob2.mass,
+                y: ny * overlap * separationStrength * proximityMultiplier / blob2.mass
+            };
+            
+            // Apply stronger separation forces
+            this.applyForce(blob1, separationForce1);
+            this.applyForce(blob2, separationForce2);
+            
+            // Add immediate velocity separation to break contact quickly
+            blob1.velocity.x += separationForce1.x * 0.5;
+            blob1.velocity.y += separationForce1.y * 0.5;
+            blob2.velocity.x += separationForce2.x * 0.5;
+            blob2.velocity.y += separationForce2.y * 0.5;
+            
+            // Reduced velocity damping to maintain separation momentum
+            blob1.velocity.x *= 0.995; // Reduced from 0.98
+            blob1.velocity.y *= 0.995;
+            blob2.velocity.x *= 0.995;
+            blob2.velocity.y *= 0.995;
+        }
+    }
+
+    /**
+     * Apply boundary forces with ultra-strong corner repulsion for small blobs
+     */
+    applyBoundaryForces(blob) {
+        const topMargin = 120;   // Increased navigation bar buffer
+        const sideMargin = 80;   // Increased side margins
+        const bottomMargin = 80; // Increased bottom margin
+        const force = { x: 0, y: 0 };
+
+        // Scale boundary strength based on blob size - much stronger for smaller blobs
+        const sizeRatio = blob.size / 20; // Normalize against base size
+        const smallBlobMultiplier = Math.max(1, 3.0 / (sizeRatio + 0.1)); // Exponential boost for tiny blobs
+        const boundaryStrength = 0.25 * smallBlobMultiplier; // Much stronger base strength
+        
+        // Exponential force increase as blobs get closer to edges
+        const edgeForceMultiplier = 3.5; // Increased multiplier
+        
+        // Ultra-enhanced corner repulsion system - massive zone and extreme forces for small blobs
+        const cornerRepulsionZone = 250; // Massive corner repulsion zone
+        const cornerStrength = 0.8 * smallBlobMultiplier; // Extreme corner repulsion for small blobs
+        
+        // Check for corner proximity first (priority over edge forces)
+        const distanceToTopLeft = Math.sqrt(blob.x * blob.x + (blob.y - topMargin) * (blob.y - topMargin));
+        const distanceToTopRight = Math.sqrt((blob.x - window.innerWidth) * (blob.x - window.innerWidth) + (blob.y - topMargin) * (blob.y - topMargin));
+        const distanceToBottomLeft = Math.sqrt(blob.x * blob.x + (blob.y - window.innerHeight) * (blob.y - window.innerHeight));
+        const distanceToBottomRight = Math.sqrt((blob.x - window.innerWidth) * (blob.x - window.innerWidth) + (blob.y - window.innerHeight) * (blob.y - window.innerHeight));
+        
+        // Find closest corner and apply strong repulsion
+        const cornerDistances = [
+            { distance: distanceToTopLeft, direction: { x: 1, y: 1 } },
+            { distance: distanceToTopRight, direction: { x: -1, y: 1 } },
+            { distance: distanceToBottomLeft, direction: { x: 1, y: -1 } },
+            { distance: distanceToBottomRight, direction: { x: -1, y: -1 } }
+        ];
+        
+        const closestCorner = cornerDistances.reduce((min, corner) => 
+            corner.distance < min.distance ? corner : min
+        );
+        
+        if (closestCorner.distance < cornerRepulsionZone) {
+            const repulsionStrength = (cornerRepulsionZone - closestCorner.distance) / cornerRepulsionZone;
+            const cornerForce = {
+                x: closestCorner.direction.x * repulsionStrength * cornerStrength,
+                y: closestCorner.direction.y * repulsionStrength * cornerStrength
+            };
+            force.x += cornerForce.x;
+            force.y += cornerForce.y;
+            
+            // Dampen velocity when near corners to prevent bouncing
+            blob.velocity.x *= 0.85;
+            blob.velocity.y *= 0.85;
+        }
+        
+        // Regular edge repulsion (weaker than corner repulsion)
+        if (blob.x < sideMargin) {
+            const penetration = (sideMargin - blob.x) / sideMargin;
+            force.x += Math.pow(penetration, edgeForceMultiplier) * boundaryStrength * sideMargin;
+        } else if (blob.x > window.innerWidth - sideMargin) {
+            const penetration = (blob.x - (window.innerWidth - sideMargin)) / sideMargin;
+            force.x -= Math.pow(penetration, edgeForceMultiplier) * boundaryStrength * sideMargin;
+        }
+
+        if (blob.y < topMargin) {
+            const penetration = (topMargin - blob.y) / topMargin;
+            force.y += Math.pow(penetration, edgeForceMultiplier) * boundaryStrength * topMargin * 1.5; // Strong for nav bar
+        } else if (blob.y > window.innerHeight - bottomMargin) {
+            const penetration = (blob.y - (window.innerHeight - bottomMargin)) / bottomMargin;
+            force.y -= Math.pow(penetration, edgeForceMultiplier) * boundaryStrength * bottomMargin;
+        }
+
+        this.applyForce(blob, force);
+        
+        // Emergency teleport system for completely stuck blobs in corners
+        const currentSpeed = Math.sqrt(blob.velocity.x * blob.velocity.x + blob.velocity.y * blob.velocity.y);
+        const isInCornerDangerZone = closestCorner.distance < 100; // Very close to corner
+        const isStuck = currentSpeed < 0.05; // Nearly motionless
+        
+        // Track how long blob has been stuck
+        if (!blob.stuckTimer) blob.stuckTimer = 0;
+        if (isStuck && isInCornerDangerZone) {
+            blob.stuckTimer += 1;
+        } else {
+            blob.stuckTimer = 0;
+        }
+        
+        // Teleport if stuck for too long (60 frames = ~1 second at 60fps)
+        if (blob.stuckTimer > 60) {
+            console.log('🚨 Emergency teleporting stuck blob from corner!');
+            const safeZone = {
+                minX: window.innerWidth * 0.25,
+                maxX: window.innerWidth * 0.75,
+                minY: window.innerHeight * 0.3,
+                maxY: window.innerHeight * 0.7
+            };
+            
+            blob.x = safeZone.minX + Math.random() * (safeZone.maxX - safeZone.minX);
+            blob.y = safeZone.minY + Math.random() * (safeZone.maxY - safeZone.minY);
+            
+            // Give it a random velocity to start moving
+            blob.velocity.x = (Math.random() - 0.5) * 2;
+            blob.velocity.y = (Math.random() - 0.5) * 2;
+            
+            blob.stuckTimer = 0;
+        }
+        
+        // Gentle center-pulling force for overall distribution (reduced to avoid conflicts)
+        const centerX = window.innerWidth * 0.5;
+        const centerY = window.innerHeight * 0.55;
+        
+        const toCenterX = centerX - blob.x;
+        const toCenterY = centerY - blob.y;
+        const distanceToCenter = Math.sqrt(toCenterX * toCenterX + toCenterY * toCenterY);
+        
+        // Very gentle center pull only when extremely far from center
+        const centerPullDistance = 350; // Increased distance threshold
+        if (distanceToCenter > centerPullDistance) {
+            const centerStrength = 0.003; // Further reduced strength to avoid corner conflicts
+            const centerForce = {
+                x: (toCenterX / distanceToCenter) * centerStrength,
+                y: (toCenterY / distanceToCenter) * centerStrength
+            };
+            this.applyForce(blob, centerForce);
+        }
+    }
+
+    /**
+     * Calculate social forces between blobs
+     */
+    calculateSocialForces(blob, otherBlobs) {
+        const force = { x: 0, y: 0 };
+
+        otherBlobs.forEach(other => {
+            if (other === blob) return;
+
+            const dx = other.x - blob.x;
+            const dy = other.y - blob.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance > 0 && distance < 100) { // Further reduced from 120 to prevent clustering
+                const nx = dx / distance;
+                const ny = dy / distance;
+
+                // Calculate base social tendency
+                let socialForce = (blob.socialTendency + other.socialTendency) * 0.008; // Further reduced from 0.015
+                
+                // Add repulsion for very close blobs regardless of social tendency
+                if (distance < 60) {
+                    // Close blobs should repel to prevent sticking
+                    const repulsionStrength = (60 - distance) / 60 * 0.02;
+                    socialForce = -repulsionStrength; // Negative = repulsion
+                }
+                
+                const distanceForce = 1 / (distance * distance + 1);
+
+                force.x += nx * socialForce * distanceForce;
+                force.y += ny * socialForce * distanceForce;
+            }
+        });
+
+        return force;
+    }
+
+    /**
+     * Create wave effect when new blob is added
+     */
+    createNewBlobWave(newBlob) {
+        this.blobs.forEach(blob => {
+            if (blob === newBlob) return;
+
+            const dx = blob.x - newBlob.x;
+            const dy = blob.y - newBlob.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance > 0 && distance < 250) { // Reduced range from 300
+                const strength = (250 - distance) / 250;
+                const pushForce = {
+                    x: (dx / distance) * strength * 0.8, // Reduced from 2 to 0.8
+                    y: (dy / distance) * strength * 0.8
+                };
+                this.applyForce(blob, pushForce);
+            }
+        });
     }
 }
 

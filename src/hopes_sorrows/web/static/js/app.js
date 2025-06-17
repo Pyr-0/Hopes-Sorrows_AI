@@ -24,11 +24,15 @@ class HopesSorrowsApp {
         // Blob management
         this.currentTooltip = null;
         this.tooltipTimer = null;
+        this.newBlobHighlights = []; // Initialize tracking array
+        this.newBlobIds = []; // Initialize tracking array
+        this.highlightTrackingInterval = null; // Track highlight following system
+        this.voiceWaves = []; // Track voice wave elements
+        this.voiceWaveInterval = null; // Track voice wave animation
         
         // Status management
         this.currentStatus = 'ready';
         this.isProcessingAnalysis = false; // Prevent duplicate analysis handling
-        this.newBlobIds = []; // Track new blob IDs for highlighting
         this.statusMessages = {
             ready: {
                 main: 'Ready to Record',
@@ -347,6 +351,24 @@ class HopesSorrowsApp {
     initializeUI() {
         console.log('🎯 Initializing UI interactions...');
         
+        // Clean up any existing highlights on initialization
+        this.cleanupAllHighlights();
+        
+        // Add page unload cleanup
+        window.addEventListener('beforeunload', () => {
+            this.cleanupAllHighlights();
+        });
+        
+        // Add page visibility change cleanup
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // Clean up highlights when page becomes hidden
+                setTimeout(() => {
+                    this.cleanupAllHighlights();
+                }, 1000);
+            }
+        });
+        
         // Blob info toggle
         if (this.elements.blobInfoToggle) {
             this.elements.blobInfoToggle.addEventListener('click', (e) => {
@@ -456,6 +478,41 @@ class HopesSorrowsApp {
         });
         
         console.log('✅ UI interactions initialized');
+    }
+    
+    /**
+     * Clean up all highlights from DOM
+     */
+    cleanupAllHighlights() {
+        console.log('🧹 Performing comprehensive highlight cleanup');
+        
+        // Clear tracking arrays
+        this.newBlobHighlights = [];
+        this.newBlobIds = [];
+        
+        // Stop tracking systems
+        this.stopHighlightTracking();
+        this.removeVoiceWaves(); // Clean up voice waves too
+        
+        // Remove all highlight elements from DOM
+        const allHighlights = document.querySelectorAll(
+            '.new-blob-highlight, .new-blob-highlight-positioned, ' +
+            '.new-blob-spotlight, .new-blob-label, .new-blob-label-positioned, ' +
+            '.voice-wave'
+        );
+        
+        allHighlights.forEach(element => {
+            if (element.parentNode) {
+                element.remove();
+            }
+        });
+        
+        // Clear blob markers in visualizer
+        if (this.emotionVisualizer && this.emotionVisualizer.clearNewBlobMarkers) {
+            this.emotionVisualizer.clearNewBlobMarkers();
+        }
+        
+        console.log(`🧹 Cleaned up ${allHighlights.length} highlight elements`);
     }
     
     /**
@@ -670,20 +727,23 @@ class HopesSorrowsApp {
         
         // Store new blob IDs for highlighting
         this.newBlobIds = [];
+        this.newBlobHighlights = []; // Track highlight elements
         
         // Add blobs with staggered timing and visual effects
         blobs.forEach((blobData, index) => {
             setTimeout(() => {
                 // Add the blob to the visualizer
-                this.emotionVisualizer.addBlob(blobData);
+                const addedBlob = this.emotionVisualizer.addBlob(blobData);
                 
                 // Store the blob ID for highlighting
-                if (blobData.id) {
-                    this.newBlobIds.push(blobData.id);
+                if (addedBlob && addedBlob.id) {
+                    this.newBlobIds.push(addedBlob.id);
+                    
+                    // Wait a moment for the blob to be positioned, then highlight it
+                    setTimeout(() => {
+                        this.highlightNewBlobAtPosition(addedBlob);
+                    }, 100);
                 }
-                
-                // Highlight the new blob
-                this.highlightNewBlob(blobData, index);
                 
                 // Add a subtle screen flash for the first blob
                 if (index === 0) {
@@ -693,164 +753,204 @@ class HopesSorrowsApp {
             }, index * 300); // Longer stagger for more dramatic effect
         });
         
-        // Remove highlights after 10 seconds
-        setTimeout(() => {
-            this.removeNewBlobHighlights();
-        }, 10000);
+        // Don't auto-remove highlights - they'll be removed when analysis panel closes
+        console.log('🎨 New blob highlights will persist until analysis panel is closed');
     }
 
     /**
-     * Highlight a newly added blob
+     * Highlight a newly added blob at its actual position
      */
-    highlightNewBlob(blobData, index) {
-        console.log('✨ Highlighting new blob:', blobData);
+    highlightNewBlobAtPosition(blob) {
+        console.log('✨ Highlighting new blob at actual position:', blob.x, blob.y);
         
-        // Create multiple highlight types for better visibility
-        this.createBlobHighlightRing(blobData, index);
-        this.createBlobSpotlight(blobData, index);
-        this.createBlobLabel(blobData, index);
-    }
-
-    /**
-     * Create a highlight ring around new blob
-     */
-    createBlobHighlightRing(blobData, index) {
         const container = document.getElementById('visualization-container');
         if (!container) return;
 
+        // Create highlight ring that follows the blob
         const ring = document.createElement('div');
-        ring.className = 'new-blob-highlight';
-        ring.dataset.blobId = blobData.id || `new-${index}`;
+        ring.className = 'new-blob-highlight-positioned';
+        ring.dataset.blobId = blob.id;
         
-        // Use more visible positioning
-        const rect = container.getBoundingClientRect();
-        const x = 20 + (index * 15) + Math.random() * 60; // Staggered positioning
-        const y = 20 + Math.random() * 60;
+        // Position at exact blob coordinates with aquamarine glow
+        ring.style.position = 'absolute';
+        ring.style.width = '60px';
+        ring.style.height = '60px';
+        ring.style.border = '2px solid rgba(78, 205, 196, 0.8)'; // Aquamarine
+        ring.style.borderRadius = '50%';
+        ring.style.pointerEvents = 'none';
+        ring.style.zIndex = '10';
+        ring.style.boxShadow = '0 0 20px rgba(78, 205, 196, 0.6), inset 0 0 20px rgba(78, 205, 196, 0.2)'; // Neon glow
         
-        ring.style.left = `${x}%`;
-        ring.style.top = `${y}%`;
+        // Create floating label that also follows
+        const label = document.createElement('div');
+        label.className = 'new-blob-label-positioned';
+        label.textContent = `NEW ${blob.category.replace('_', ' ').toUpperCase()}`;
+        label.dataset.blobId = blob.id;
+        
+        label.style.position = 'absolute';
+        label.style.width = '90px';
+        label.style.textAlign = 'center';
+        label.style.color = '#4ECDC4'; // Aquamarine text
+        label.style.fontSize = '9px';
+        label.style.fontWeight = 'bold';
+        label.style.textShadow = '0 0 8px rgba(78, 205, 196, 0.8)'; // Aquamarine glow
+        label.style.pointerEvents = 'none';
+        label.style.zIndex = '11';
+        label.style.background = 'rgba(0, 0, 0, 0.8)';
+        label.style.padding = '3px 6px';
+        label.style.borderRadius = '10px';
+        label.style.border = '1px solid rgba(78, 205, 196, 0.5)';
+        
+        // Function to update positions
+        const updatePositions = () => {
+            if (blob && container.contains(ring)) {
+                ring.style.left = `${blob.x - 30}px`;  // Center the 60px ring
+                ring.style.top = `${blob.y - 30}px`;
+                label.style.left = `${blob.x - 45}px`;
+                label.style.top = `${blob.y - 55}px`;
+            }
+        };
+        
+        // Store the update function for later cleanup
+        ring.updatePosition = updatePositions;
+        label.updatePosition = updatePositions;
+        
+        // Set initial positions
+        updatePositions();
+        
         container.appendChild(ring);
+        container.appendChild(label);
+        this.newBlobHighlights.push(ring);
+        this.newBlobHighlights.push(label);
         
-        // Enhanced animation
+        // Animate the ring
         if (typeof anime !== 'undefined') {
             anime({
                 targets: ring,
-                scale: [0, 2, 1.2],
+                scale: [0, 1.3, 1.0],
                 opacity: [0, 1, 0.8],
                 duration: 1200,
                 easing: 'easeOutElastic(1, .6)',
                 complete: () => {
+                    // Continuous pulsing animation
                     anime({
                         targets: ring,
-                        scale: [1.2, 1.5, 1.2],
+                        scale: [1.0, 1.2, 1.0],
                         opacity: [0.8, 1, 0.8],
-                        duration: 3000,
+                        duration: 2500,
                         loop: true,
                         easing: 'easeInOutSine'
                     });
                 }
             });
-        }
-    }
-
-    /**
-     * Create spotlight effect for new blob
-     */
-    createBlobSpotlight(blobData, index) {
-        const container = document.getElementById('visualization-container');
-        if (!container) return;
-
-        const spotlight = document.createElement('div');
-        spotlight.className = 'new-blob-spotlight';
-        spotlight.dataset.blobId = blobData.id || `new-${index}`;
-        
-        const x = 25 + (index * 15) + Math.random() * 50;
-        const y = 25 + Math.random() * 50;
-        
-        spotlight.style.left = `${x}%`;
-        spotlight.style.top = `${y}%`;
-        container.appendChild(spotlight);
-        
-        if (typeof anime !== 'undefined') {
-            anime({
-                targets: spotlight,
-                scale: [0, 3, 1],
-                opacity: [0, 0.3, 0],
-                duration: 2000,
-                easing: 'easeOutQuad'
-            });
-        }
-        
-        setTimeout(() => spotlight.remove(), 2000);
-    }
-
-    /**
-     * Create label for new blob
-     */
-    createBlobLabel(blobData, index) {
-        const container = document.getElementById('visualization-container');
-        if (!container) return;
-
-        const label = document.createElement('div');
-        label.className = 'new-blob-label';
-        label.textContent = `NEW ${blobData.dominant_emotion || 'EMOTION'}`;
-        label.dataset.blobId = blobData.id || `new-${index}`;
-        
-        const x = 15 + (index * 20) + Math.random() * 50;
-        const y = 15 + Math.random() * 30;
-        
-        label.style.left = `${x}%`;
-        label.style.top = `${y}%`;
-        container.appendChild(label);
-        
-        if (typeof anime !== 'undefined') {
+            
             anime({
                 targets: label,
                 translateY: [-20, 0],
                 opacity: [0, 1],
                 scale: [0.8, 1],
                 duration: 800,
-                easing: 'easeOutBack',
-                complete: () => {
-                    setTimeout(() => {
-                        anime({
-                            targets: label,
-                            opacity: [1, 0],
-                            translateY: [0, -10],
-                            duration: 500,
-                            complete: () => label.remove()
-                        });
-                    }, 8000);
+                easing: 'easeOutBack'
+            });
+        }
+        
+        // Start position update loop
+        this.startHighlightTracking();
+    }
+
+    /**
+     * Start tracking highlights to follow blob positions
+     */
+    startHighlightTracking() {
+        // Only start if not already running
+        if (this.highlightTrackingInterval) return;
+        
+        this.highlightTrackingInterval = setInterval(() => {
+            // Update all highlight positions
+            this.newBlobHighlights.forEach(highlight => {
+                if (highlight.updatePosition && highlight.parentNode) {
+                    highlight.updatePosition();
                 }
             });
+        }, 16); // ~60 FPS
+        
+        console.log('🎯 Started highlight tracking system');
+    }
+
+    /**
+     * Stop tracking highlights
+     */
+    stopHighlightTracking() {
+        if (this.highlightTrackingInterval) {
+            clearInterval(this.highlightTrackingInterval);
+            this.highlightTrackingInterval = null;
+            console.log('🎯 Stopped highlight tracking system');
         }
     }
 
     /**
-     * Remove highlights from new blobs
+     * Remove highlights from new blobs (called when analysis panel closes)
      */
     removeNewBlobHighlights() {
-        const highlights = document.querySelectorAll('.new-blob-highlight, .new-blob-spotlight, .new-blob-label');
+        console.log('🧹 Removing', this.newBlobHighlights.length, 'positioned blob highlights');
         
-        console.log('🧹 Removing', highlights.length, 'blob highlights');
+        // Stop tracking system
+        this.stopHighlightTracking();
         
-        if (typeof anime !== 'undefined') {
+        // Force cleanup of any stuck highlights by searching DOM
+        const stuckHighlights = document.querySelectorAll('.new-blob-highlight-positioned, .new-blob-label-positioned');
+        stuckHighlights.forEach(element => {
+            if (!this.newBlobHighlights.includes(element)) {
+                console.log('🧹 Found stuck highlight, removing:', element);
+                this.newBlobHighlights.push(element);
+            }
+        });
+        
+        if (typeof anime !== 'undefined' && this.newBlobHighlights.length > 0) {
             anime({
-                targets: highlights,
+                targets: this.newBlobHighlights,
                 opacity: [null, 0],
                 scale: [null, 0.8],
                 duration: 1000,
                 easing: 'easeInCubic',
                 complete: () => {
-                    highlights.forEach(highlight => highlight.remove());
+                    this.newBlobHighlights.forEach(highlight => {
+                        if (highlight && highlight.parentNode) {
+                            highlight.remove();
+                        }
+                    });
+                    this.newBlobHighlights = [];
+                    
+                    // Double-check for any remaining stuck elements
+                    setTimeout(() => {
+                        const remainingHighlights = document.querySelectorAll('.new-blob-highlight-positioned, .new-blob-label-positioned');
+                        remainingHighlights.forEach(element => {
+                            console.log('🧹 Force removing remaining highlight:', element);
+                            element.remove();
+                        });
+                    }, 100);
                 }
             });
         } else {
-            highlights.forEach(highlight => highlight.remove());
+            this.newBlobHighlights.forEach(highlight => {
+                if (highlight && highlight.parentNode) {
+                    highlight.remove();
+                }
+            });
+            this.newBlobHighlights = [];
+            
+            // Fallback cleanup
+            setTimeout(() => {
+                const remainingHighlights = document.querySelectorAll('.new-blob-highlight-positioned, .new-blob-label-positioned');
+                remainingHighlights.forEach(element => element.remove());
+            }, 100);
         }
         
-        // Clear the stored IDs
+        // Clear the stored IDs and reset blob markers
         this.newBlobIds = [];
+        if (this.emotionVisualizer && this.emotionVisualizer.clearNewBlobMarkers) {
+            this.emotionVisualizer.clearNewBlobMarkers();
+        }
     }
 
     /**
@@ -949,8 +1049,8 @@ class HopesSorrowsApp {
      * Start visual effects during recording
      */
     startRecordingVisualEffects() {
-        // Add wave animation to the background
-        this.createRecordingWaves();
+        // Add voice-responsive wave animation to the background
+        this.createVoiceWaves();
         
         // Add pulse effect to record button
         this.startRecordButtonPulse();
@@ -961,34 +1061,137 @@ class HopesSorrowsApp {
      */
     stopRecordingVisualEffects() {
         // Remove wave animation
-        this.removeRecordingWaves();
+        this.removeVoiceWaves();
         
         // Stop pulse effect
         this.stopRecordButtonPulse();
     }
 
     /**
-     * Create animated waves during recording
+     * Create voice-responsive animated waves during recording
      */
-    createRecordingWaves() {
+    createVoiceWaves() {
         const container = document.getElementById('visualization-container');
         if (!container) return;
 
-        // Create multiple wave elements
-        for (let i = 0; i < 3; i++) {
+        // Create multiple wave lines that will oscillate
+        this.voiceWaves = [];
+        const waveCount = 5;
+        
+        for (let i = 0; i < waveCount; i++) {
             const wave = document.createElement('div');
-            wave.className = 'recording-wave';
-            wave.style.animationDelay = `${i * 0.5}s`;
+            wave.className = 'voice-wave';
+            wave.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+                z-index: 1;
+                background: transparent;
+            `;
+            
+            // Create SVG for smooth wave rendering
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.style.cssText = `
+                width: 100%;
+                height: 100%;
+                position: absolute;
+                top: 0;
+                left: 0;
+            `;
+            
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.style.cssText = `
+                fill: none;
+                stroke: rgba(78, 205, 196, ${0.2 - i * 0.03});
+                stroke-width: ${2 + i};
+                stroke-linecap: round;
+            `;
+            
+            svg.appendChild(path);
+            wave.appendChild(svg);
             container.appendChild(wave);
+            
+            this.voiceWaves.push({
+                element: wave,
+                path: path,
+                frequency: 0.02 + i * 0.005, // Different frequencies for each wave
+                amplitude: 25 + i * 8, // Slightly smaller amplitudes for more centered look
+                phase: i * Math.PI / 2.5, // Adjusted phase distribution
+                baseY: window.innerHeight * (0.45 + i * 0.02) // Centered around middle (45-53%)
+            });
         }
+        
+        // Start wave animation
+        this.animateVoiceWaves();
+    }
+
+    /**
+     * Animate voice waves continuously during recording
+     */
+    animateVoiceWaves() {
+        if (!this.voiceWaves || this.voiceWaves.length === 0) return;
+        
+        let time = 0;
+        
+        this.voiceWaveInterval = setInterval(() => {
+            time += 1;
+            
+            this.voiceWaves.forEach((wave, index) => {
+                // Simulate voice intensity (in real implementation, this could use WebAudio API)
+                const voiceIntensity = 0.5 + 0.5 * Math.sin(time * 0.1 + index);
+                
+                // Generate wave path
+                const points = [];
+                const width = window.innerWidth;
+                const segments = 50;
+                
+                for (let i = 0; i <= segments; i++) {
+                    const x = (i / segments) * width;
+                    const progress = i / segments;
+                    
+                    // Create organic wave motion with multiple harmonics for richer patterns
+                    const primaryWave = Math.sin(time * wave.frequency + progress * Math.PI * 2 + wave.phase);
+                    const harmonicWave = Math.sin(time * wave.frequency * 2 + progress * Math.PI * 4 + wave.phase) * 0.3;
+                    const y = wave.baseY + (primaryWave + harmonicWave) * wave.amplitude * voiceIntensity;
+                    
+                    points.push(`${x},${y}`);
+                }
+                
+                // Create smooth SVG path
+                let pathData = `M ${points[0]}`;
+                for (let i = 1; i < points.length; i++) {
+                    pathData += ` L ${points[i]}`;
+                }
+                
+                wave.path.setAttribute('d', pathData);
+            });
+        }, 16); // ~60 FPS
     }
 
     /**
      * Remove recording waves
      */
-    removeRecordingWaves() {
-        const waves = document.querySelectorAll('.recording-wave');
-        waves.forEach(wave => wave.remove());
+    removeVoiceWaves() {
+        if (this.voiceWaveInterval) {
+            clearInterval(this.voiceWaveInterval);
+            this.voiceWaveInterval = null;
+        }
+        
+        if (this.voiceWaves) {
+            this.voiceWaves.forEach(wave => {
+                if (wave.element && wave.element.parentNode) {
+                    wave.element.remove();
+                }
+            });
+            this.voiceWaves = [];
+        }
+        
+        // Clean up any remaining wave elements
+        const remainingWaves = document.querySelectorAll('.voice-wave');
+        remainingWaves.forEach(wave => wave.remove());
     }
 
     /**
@@ -1394,6 +1597,12 @@ class HopesSorrowsApp {
         if (this.elements.analysisConfirmation) {
             this.elements.analysisConfirmation.classList.remove('visible');
             console.log('✅ Analysis confirmation hidden');
+            
+            // Remove blob highlights 5 seconds after panel closes
+            setTimeout(() => {
+                console.log('🕒 5 seconds elapsed, removing blob highlights');
+                this.removeNewBlobHighlights();
+            }, 5000);
         } else {
             console.warn('⚠️ Analysis confirmation element not found');
         }

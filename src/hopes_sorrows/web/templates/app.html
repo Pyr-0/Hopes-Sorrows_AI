@@ -9,6 +9,14 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='earth.png') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='earth.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+    
     <!-- Visualization Support -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 </head>
@@ -36,8 +44,10 @@
         
         <!-- Blob Info Toggle Button -->
         <button id="blob-info-toggle" class="blob-info-toggle" title="Toggle Emotion Categories">
-            <div class="toggle-icon">🎨</div>
-            <div class="toggle-label">Emotions</div>
+            <div class="toggle-content">
+                <div class="toggle-icon">🎭</div>
+                <div class="toggle-label">EMOTIONS</div>
+            </div>
         </button>
         
         <!-- Recording Interface -->
@@ -155,7 +165,7 @@
                 <div class="metric-card">
                     <div class="metric-icon">🎯</div>
                     <div class="metric-value" id="analysis-confidence">0%</div>
-                    <div class.metric-label">AI Confidence</div>
+                    <div class="metric-label">AI Confidence</div>
                     <div class="metric-sublabel">Accuracy of emotion detection</div>
                 </div>
             </div>

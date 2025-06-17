@@ -27,6 +27,60 @@ The system classifies emotions into five meaningful categories:
 - **🟠 Ambivalent**: Mixed emotions, uncertainty, complexity
 - **⚪ Reflective**: Contemplation, neutrality, thoughtfulness
 
+### 🧮 Advanced Scoring System
+
+Hopes & Sorrows uses a sophisticated multi-dimensional scoring system to capture emotional nuance:
+
+#### Score Components
+
+- **📊 Sentiment Score** (`-1.0` to `1.0`): Emotional polarity where negative values represent sorrow-leaning emotions and positive values represent hope-leaning emotions
+- **⚡ Intensity Score** (`0.0` to `1.0`): Emotional strength - how powerful the emotion is regardless of polarity
+- **🎯 Confidence Score** (`0.0` to `1.0`): AI certainty in the classification - how confident the system is about its analysis
+
+#### Blob Size Calculation
+
+Emotion blobs are dynamically sized based on emotional properties:
+
+```
+Final Size = Base Size (10px) + 
+            Intensity × 12 + 
+            Confidence × 6 + 
+            |Score| × 8
+```
+
+**Size Hierarchy**: Intensity > Confidence > Absolute Score Value  
+**Size Range**: 8px to 30px for optimal visual balance
+
+### 🔬 Physics-Based Behavior System
+
+Each emotion blob exhibits realistic physics behavior that reflects psychological principles:
+
+#### Movement Mechanics
+
+1. **🌊 Organic Floating**: Sine/cosine wave patterns scaled by emotional energy
+2. **⚖️ Gravitational Forces**: Hope naturally rises (↑), sorrow naturally falls (↓)
+3. **🤝 Social Dynamics**: Emotions attract/repel based on psychological compatibility
+4. **💥 Collision Physics**: Mass-based elastic collisions with proper impulse calculation
+5. **🛡️ Boundary Forces**: Gentle containment to keep emotions visible
+6. **🌊 Wave Reactions**: Collective response when new emotions appear
+
+#### Behavioral Personalities
+
+Each emotion category has distinct social tendencies:
+
+- **Hope** (0.7): Seeks companionship, creates positive social energy
+- **Transformative** (0.5): Moderate social interaction, focused energy
+- **Ambivalent** (0.1): Uncertain about social contact, hesitant movement
+- **Reflective** (-0.1): Prefers contemplative solitude
+- **Sorrow** (-0.3): Seeks gentle comfort but maintains distance
+
+#### Mass & Physics Properties
+
+- **Mass Calculation**: `(Base Size ÷ 10) + Intensity × 2 + |Score| × 1.5`
+- **Velocity Limits**: 3px/frame maximum to prevent chaotic movement
+- **Collision Response**: Larger emotions have more inertia, smaller emotions bounce more
+- **Social Range**: 200px interaction radius for emotional influence
+
 ## 🚀 Quick Start
 
 ### Prerequisites
