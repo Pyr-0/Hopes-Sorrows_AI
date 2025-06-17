@@ -229,8 +229,16 @@ class AudioRecorder {
         }
         
         if (this.timerProgress) {
-            const progress = ((this.maxDuration - seconds) / this.maxDuration) * 283; // 283 is circumference
-            this.timerProgress.style.strokeDashoffset = 283 - progress;
+            // FIXED: Improve timer circle calculation with bounds checking
+            const totalSeconds = this.maxDuration;
+            const elapsed = Math.max(0, Math.min(totalSeconds, totalSeconds - seconds));
+            const progress = (elapsed / totalSeconds);
+            const circumference = 283; // Circle circumference
+            const offset = circumference - (progress * circumference);
+            
+            // Smooth the transition and prevent jumps
+            this.timerProgress.style.transition = seconds === totalSeconds ? 'none' : 'stroke-dashoffset 0.1s linear';
+            this.timerProgress.style.strokeDashoffset = Math.max(0, offset);
         }
     }
     
@@ -337,10 +345,22 @@ class AudioRecorder {
             if (result.success) {
                 // Success - let the main app handle the analysis completion
                 console.log('✅ Audio processed successfully, notifying main app');
+                console.log('🔍 Result data:', {
+                    blobCount: result.blobs ? result.blobs.length : 0,
+                    sessionId: result.session_id,
+                    hasSummary: !!result.processing_summary
+                });
                 
                 // Hide processing panel first
                 if (this.processingPanel) {
                     this.processingPanel.classList.remove('active');
+                }
+                
+                // ENHANCED: Ensure we have blobs before proceeding
+                if (!result.blobs || result.blobs.length === 0) {
+                    console.warn('⚠️ No blobs in result - this indicates an analysis issue');
+                    this.showError('Analysis completed but no emotions were detected. Please try speaking more clearly or for longer.');
+                    return;
                 }
                 
                 // Notify the main app about the analysis completion
@@ -351,14 +371,22 @@ class AudioRecorder {
                     console.warn('⚠️ Main app not available, trying direct analysis confirmation');
                     console.log('🔍 Available on window:', Object.keys(window).filter(k => k.includes('hopes') || k.includes('App')));
                     
-                    // Try direct analysis confirmation
-                    this.showDirectAnalysisConfirmation(result);
+                    // ENHANCED: More aggressive fallback handling
+                    setTimeout(() => {
+                        if (window.hopesSorrowsApp && window.hopesSorrowsApp.handleAnalysisComplete) {
+                            console.log('🔄 Retry successful - main app is now available');
+                            window.hopesSorrowsApp.handleAnalysisComplete(result);
+                        } else {
+                            console.log('🎯 Using direct analysis confirmation fallback');
+                            this.showDirectAnalysisConfirmation(result);
+                        }
+                    }, 500);
                 }
                 
-                // Reset UI state after a short delay to let analysis panel show
+                // Reset UI state after a delay to let analysis panel show
                 setTimeout(() => {
                     this.resetToInitialState();
-                }, 1000);
+                }, 2000); // Increased delay
                 
                 // Generate new session ID for next recording
                 this.sessionId = this.generateSessionId();

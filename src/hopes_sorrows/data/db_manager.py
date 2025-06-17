@@ -7,7 +7,7 @@ from typing import Optional, Tuple
 class DatabaseManager:
 	"""Manager class for database operations with global speaker numbering"""
 		
-	def __init__(self, db_path="sqlite:///sentiment_analysis.db"):
+	def __init__(self, db_path="sqlite:///data/databases/sentiment_analysis.db"):
 		"""Initialize database connection"""
 		self.engine = create_engine(db_path)
 		# Create tables if they don't exist

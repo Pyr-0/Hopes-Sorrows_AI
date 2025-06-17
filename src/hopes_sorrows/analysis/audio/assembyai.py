@@ -26,7 +26,7 @@ from ...analysis.sentiment.sa_transformers import analyze_sentiment as analyze_s
 from ...analysis.sentiment.sa_LLM import analyze_sentiment as analyze_sentiment_llm
 from ...analysis.sentiment.combined_analyzer import analyze_sentiment_combined
 from ...data.db_manager import DatabaseManager
-from ...data.models import AnalyzerType
+from ...data.models import AnalyzerType, Transcription, SentimentAnalysis
 from ...core.config import get_config
 
 # Load configuration
@@ -274,61 +274,94 @@ def analyze_audio(audio_file, use_llm=True, expected_speakers=None):
 			# Get or create speaker for this session
 			speaker = speaker_manager.get_or_create_speaker(speaker_id)
 			
-			# Store transcription with enhanced metadata
-			transcription = db_manager.add_transcription(
-				speaker.id, 
-				text,
-				duration=(utterance.end - utterance.start) / 1000.0,  # Convert ms to seconds
-				confidence_score=getattr(utterance, 'confidence', None)
-			)
-			console.print(f"[blue]💾[/blue] Stored transcription for {speaker.display_name}: {text[:50]}...")
-			
-			# ENHANCED: Perform combined sentiment analysis
-			try:
-				# Use combined analyzer for single, more accurate result
-				combined_sentiment = analyze_sentiment_combined(
-					text, speaker_id, None, use_llm=use_llm, verbose=False
+			# DUPLICATE PREVENTION: Check if this exact text already exists
+			existing_transcription = db_manager.session.query(Transcription).filter_by(text=text).first()
+			if existing_transcription:
+				console.print(f"[yellow]⚠️[/yellow] Duplicate transcription detected: \"{text[:50]}...\"")
+				console.print(f"[yellow]Skipping storage, using existing transcription ID: {existing_transcription.id}[/yellow]")
+				transcription = existing_transcription
+				
+				# Check if sentiment analysis already exists for this transcription
+				existing_analysis = db_manager.session.query(SentimentAnalysis).filter_by(transcription_id=existing_transcription.id).first()
+				if existing_analysis:
+					console.print(f"[yellow]⚠️[/yellow] Sentiment analysis already exists, skipping analysis")
+					# Use existing analysis data to create the result
+					combined_sentiment = {
+						'label': existing_analysis.label,
+						'category': existing_analysis.category,
+						'score': existing_analysis.score,
+						'confidence': existing_analysis.confidence,
+						'explanation': existing_analysis.explanation or 'Existing analysis',
+						'has_llm': existing_analysis.analyzer_type == AnalyzerType.COMBINED,
+						'analysis_source': 'existing'
+					}
+					skip_new_analysis = True
+				else:
+					skip_new_analysis = False
+			else:
+				# Store transcription with enhanced metadata
+				transcription = db_manager.add_transcription(
+					speaker.id, 
+					text,
+					duration=(utterance.end - utterance.start) / 1000.0,  # Convert ms to seconds
+					confidence_score=getattr(utterance, 'confidence', None)
 				)
-				processed_count += 1
-				console.print(f"[green]🔄[/green] Combined analysis: {combined_sentiment['category']} (confidence: {combined_sentiment['confidence']:.1%})")
-			except Exception as e:
-				console.print(f"[red]❌ Combined analysis failed for utterance: {str(e)}[/red]")
-				# Fallback to simple transformer analysis
+				console.print(f"[blue]💾[/blue] Stored NEW transcription for {speaker.display_name}: {text[:50]}...")
+				skip_new_analysis = False
+			
+			# ENHANCED: Perform combined sentiment analysis (unless we're using existing)
+			if not skip_new_analysis:
 				try:
-					combined_sentiment = analyze_sentiment_transformer(text, speaker_id, None, verbose=False)
-					console.print(f"[yellow]🔄[/yellow] Fallback to transformer: {combined_sentiment['category']}")
-				except Exception as e2:
-					console.print(f"[red]❌ Transformer fallback also failed: {str(e2)}[/red]")
-					combined_sentiment = _create_fallback_sentiment_result(text, "all_analysis_failed")
+					# Use combined analyzer for single, more accurate result
+					combined_sentiment = analyze_sentiment_combined(
+						text, speaker_id, None, use_llm=use_llm, verbose=False
+					)
+					processed_count += 1
+					console.print(f"[green]🔄[/green] Combined analysis: {combined_sentiment['category']} (confidence: {combined_sentiment['confidence']:.1%})")
+				except Exception as e:
+					console.print(f"[red]❌ Combined analysis failed for utterance: {str(e)}[/red]")
+					# Fallback to simple transformer analysis
+					try:
+						combined_sentiment = analyze_sentiment_transformer(text, speaker_id, None, verbose=False)
+						console.print(f"[yellow]🔄[/yellow] Fallback to transformer: {combined_sentiment['category']}")
+					except Exception as e2:
+						console.print(f"[red]❌ Transformer fallback also failed: {str(e2)}[/red]")
+						combined_sentiment = _create_fallback_sentiment_result(text, "all_analysis_failed")
+			else:
+				console.print(f"[yellow]🔄[/yellow] Using existing analysis: {combined_sentiment['category']} (confidence: {combined_sentiment['confidence']:.1%})")
 			
 			# Store ONLY the combined analysis result in database (not separate analyses)
-			# Determine the appropriate analyzer type based on what was actually used
-			if combined_sentiment.get('has_llm', False) and combined_sentiment.get('analysis_source') not in ['transformer_only', 'fallback']:
-				analyzer_type = AnalyzerType.COMBINED
-				analysis_description = f"Combined analysis using transformer + LLM ({combined_sentiment.get('combination_strategy', 'weighted_average')})"
+			# Only store new analysis if we didn't skip it
+			if not skip_new_analysis:
+				# Determine the appropriate analyzer type based on what was actually used
+				if combined_sentiment.get('has_llm', False) and combined_sentiment.get('analysis_source') not in ['transformer_only', 'fallback']:
+					analyzer_type = AnalyzerType.COMBINED
+					analysis_description = f"Combined analysis using transformer + LLM ({combined_sentiment.get('combination_strategy', 'weighted_average')})"
+				else:
+					analyzer_type = AnalyzerType.TRANSFORMER
+					analysis_description = "Transformer-only analysis (LLM unavailable or failed)"
+				
+				combined_analysis = db_manager.add_sentiment_analysis(
+					transcription_id=transcription.id,
+					analyzer_type=analyzer_type,  # Use appropriate type based on actual analysis
+					label=combined_sentiment['label'],
+					category=combined_sentiment['category'],
+					score=combined_sentiment['score'],
+					confidence=combined_sentiment['confidence'],
+					explanation=combined_sentiment.get('explanation', analysis_description)
+				)
+				console.print(f"[green]💾[/green] Stored NEW {analyzer_type.value} analysis: {combined_sentiment['category']}")
+				
+				# Store detailed metadata about the combination in the explanation field
+				if 'combination_strategy' in combined_sentiment:
+					detailed_explanation = f"{analysis_description}. "
+					if 'transformer_category' in combined_sentiment and 'llm_category' in combined_sentiment:
+						detailed_explanation += f"Transformer: {combined_sentiment['transformer_category']}, "
+						detailed_explanation += f"LLM: {combined_sentiment['llm_category']}"
+					combined_analysis.explanation = detailed_explanation
+					db_manager.session.commit()
 			else:
-				analyzer_type = AnalyzerType.TRANSFORMER
-				analysis_description = "Transformer-only analysis (LLM unavailable or failed)"
-			
-			combined_analysis = db_manager.add_sentiment_analysis(
-				transcription_id=transcription.id,
-				analyzer_type=analyzer_type,  # Use appropriate type based on actual analysis
-				label=combined_sentiment['label'],
-				category=combined_sentiment['category'],
-				score=combined_sentiment['score'],
-				confidence=combined_sentiment['confidence'],
-				explanation=combined_sentiment.get('explanation', analysis_description)
-			)
-			console.print(f"[green]💾[/green] Stored {analyzer_type.value} analysis: {combined_sentiment['category']}")
-			
-			# Store detailed metadata about the combination in the explanation field
-			if 'combination_strategy' in combined_sentiment:
-				detailed_explanation = f"{analysis_description}. "
-				if 'transformer_category' in combined_sentiment and 'llm_category' in combined_sentiment:
-					detailed_explanation += f"Transformer: {combined_sentiment['transformer_category']}, "
-					detailed_explanation += f"LLM: {combined_sentiment['llm_category']}"
-				combined_analysis.explanation = detailed_explanation
-				db_manager.session.commit()
+				console.print(f"[green]💾[/green] Using EXISTING analysis: {combined_sentiment['category']}")
 			
 			results.append({
 				"speaker": speaker.display_name,

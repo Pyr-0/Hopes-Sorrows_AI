@@ -48,6 +48,8 @@ class CombinedSentimentAnalyzer:
             transformer_result = analyze_sentiment_transformer(
                 text, speaker_id, context_window, verbose=False
             )
+            if verbose:
+                print(f"🤖 Transformer result: {transformer_result['category']} (confidence: {transformer_result['confidence']:.1%})")
         except Exception as e:
             if verbose:
                 print(f"❌ Transformer analysis failed: {e}")
@@ -60,6 +62,8 @@ class CombinedSentimentAnalyzer:
                 llm_result = analyze_sentiment_llm(
                     text, speaker_id, context_window, api_key=None, verbose=False
                 )
+                if verbose:
+                    print(f"🧠 LLM result: {llm_result['category']} (confidence: {llm_result['confidence']:.1%})")
             except Exception as e:
                 if verbose:
                     print(f"⚠️ LLM analysis failed, using transformer only: {e}")
@@ -67,12 +71,17 @@ class CombinedSentimentAnalyzer:
         
         # Combine results based on strategy
         if llm_result is None:
-            # Only transformer available
+            # Only transformer available - enhance its result
             final_result = transformer_result.copy()
             final_result['analysis_source'] = 'transformer_only'
             final_result['combination_strategy'] = 'fallback'
+            
+            # ENHANCED: Boost transformer confidence when it's the only source
+            if transformer_result['confidence'] > 0.6:
+                final_result['confidence'] = min(0.95, transformer_result['confidence'] * 1.1)
+            
         else:
-            # Both analyses available - combine them
+            # Both analyses available - combine them intelligently
             final_result = self._combine_analyses(transformer_result, llm_result)
         
         # Add metadata about the combination

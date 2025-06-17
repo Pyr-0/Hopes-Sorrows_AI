@@ -299,24 +299,45 @@ class HopesSorrowsApp {
             if (data.success && data.blobs) {
                 console.log(`📊 Found ${data.blobs.length} existing blobs`);
                 
+                // FIXED: Wait for all blobs to be added before updating stats
+                let blobsLoaded = 0;
+                const totalBlobs = data.blobs.length;
+                
+                if (totalBlobs === 0) {
+                    console.log('📊 No existing blobs found');
+                    // Update stats with empty array to reset counters
+                    this.updateBlobStats([]);
+                    return;
+                }
+                
                 // Add blobs to visualizer with staggered timing
                 data.blobs.forEach((blobData, index) => {
                     setTimeout(() => {
                         this.emotionVisualizer.addBlob(blobData);
+                        blobsLoaded++;
+                        
+                        // Update stats when all blobs are loaded
+                        if (blobsLoaded === totalBlobs) {
+                            setTimeout(() => {
+                                console.log('📊 All blobs loaded, updating stats...');
+                                this.updateBlobStats(data.blobs);
+                            }, 100); // Small delay to ensure visualizer is updated
+                        }
                     }, index * 100); // 100ms delay between each blob
                 });
                 
-                // Update stats
-                this.updateBlobStats(data.blobs);
-                
-                console.log('✅ Existing blobs loaded successfully');
+                console.log('✅ Existing blobs loading started');
             } else {
                 console.log('📊 No existing blobs found');
+                // Update stats with empty array to reset counters
+                this.updateBlobStats([]);
             }
             
         } catch (error) {
             console.error('❌ Failed to load existing blobs:', error);
             // Don't throw - app can still function without existing blobs
+            // Reset stats to show zeros
+            this.updateBlobStats([]);
         }
     }
     
@@ -689,25 +710,53 @@ class HopesSorrowsApp {
         
         this.isProcessingAnalysis = true;
         
+        // ENHANCED: Validate data structure
+        if (!data || !data.blobs) {
+            console.error('❌ Invalid analysis data received:', data);
+            this.showError('Analysis completed but data was corrupted. Please try again.');
+            this.isProcessingAnalysis = false;
+            return;
+        }
+        
+        console.log(`🫧 Processing ${data.blobs.length} new blobs...`);
+        
         // Hide processing panel first
         this.hideProcessingPanel();
         
         // Add new blobs to visualizer with enhanced animations
         if (data.blobs && this.emotionVisualizer) {
+            console.log('🎨 Adding blobs to visualizer...');
             this.animateNewBlobEntries(data.blobs);
+        } else if (!this.emotionVisualizer) {
+            console.error('❌ Emotion visualizer not available!');
+            this.showError('Visualization system not ready. Please refresh the page.');
+            this.isProcessingAnalysis = false;
+            return;
         }
         
         // Show analysis confirmation with detailed results
         setTimeout(() => {
+            console.log('📊 Showing analysis confirmation...');
             this.showAnalysisConfirmation(data);
         }, 800); // Delay to let blob animations play
         
         // Update stats
         setTimeout(() => {
-            this.updateBlobStats();
+            console.log('📈 Updating blob statistics...');
+            this.updateBlobStats(data.blobs);
         }, data.blobs ? data.blobs.length * 300 + 800 : 800);
         
         this.updateStatus('complete');
+        
+        // ENHANCED: Announce success to user
+        if (data.blobs && data.blobs.length > 0) {
+            console.log(`✨ Successfully created ${data.blobs.length} emotion blob(s)!`);
+            
+            // Create a visual success indicator
+            setTimeout(() => {
+                this.showNewBlobIndicator(data.blobs.length);
+            }, 1000);
+        }
         
         // Reset to ready after a delay
         setTimeout(() => {
@@ -1535,6 +1584,9 @@ class HopesSorrowsApp {
         if (explanationEl) {
             explanationEl.innerHTML = this.generateDetailedExplanation(blobs, emotionCategories);
         }
+        
+        // ENHANCED: Update global blob stats to sync with new data
+        this.updateBlobStats(blobs);
     }
 
     generateDetailedExplanation(blobs, emotionCategories) {
@@ -1644,19 +1696,27 @@ class HopesSorrowsApp {
      * Update blob statistics
      */
     updateBlobStats(blobs = null) {
+        console.log('📊 Updating blob stats...');
+        
         // If no blobs provided, get them from visualizer
         if (!blobs && this.emotionVisualizer && this.emotionVisualizer.getBlobs) {
             blobs = this.emotionVisualizer.getBlobs();
+            console.log(`📊 Retrieved ${blobs ? blobs.length : 0} blobs from visualizer`);
         }
         
         if (!blobs || !Array.isArray(blobs)) {
-            console.warn('⚠️ No valid blobs data for stats update');
-            return;
+            console.warn('⚠️ No valid blobs data for stats update, setting counts to 0');
+            blobs = []; // Ensure it's an empty array for consistent processing
         }
+        
+        console.log(`📊 Processing ${blobs.length} blobs for stats`);
         
         // Update total count
         if (this.elements.blobCount) {
             this.elements.blobCount.textContent = blobs.length;
+            console.log(`📊 Updated blob counter to: ${blobs.length}`);
+        } else {
+            console.warn('⚠️ Blob count element not found');
         }
         
         // Update category counts - handle both uppercase and lowercase
@@ -1668,10 +1728,13 @@ class HopesSorrowsApp {
             reflective_neutral: 0
         };
         
+        // Count categories from blobs
         blobs.forEach(blob => {
             const category = blob.category ? blob.category.toLowerCase() : '';
             if (categoryCounts.hasOwnProperty(category)) {
                 categoryCounts[category]++;
+            } else if (category) {
+                console.warn(`⚠️ Unknown category found: ${category}`);
             }
         });
         
@@ -1684,17 +1747,95 @@ class HopesSorrowsApp {
             reflective_neutral: document.getElementById('reflective-neutral-count')
         };
         
+        // ENHANCED: Update each category count and provide debugging
         Object.keys(categoryCounts).forEach(category => {
             const element = categoryElements[category];
+            const count = categoryCounts[category];
             if (element) {
-                element.textContent = categoryCounts[category];
+                element.textContent = count;
+                console.log(`📊 Updated ${category} count to: ${count}`);
+            } else {
+                console.warn(`⚠️ Category element not found for: ${category}`);
             }
         });
         
-        console.log('📊 Updated blob stats:', categoryCounts);
+        // ENHANCED: Calculate confidence and voice segments
+        if (blobs.length > 0) {
+            const avgConfidence = blobs.reduce((sum, blob) => sum + (blob.confidence || 0), 0) / blobs.length;
+            const confidencePercent = Math.round(avgConfidence * 100);
+            
+            // Update confidence display - FIXED: Target correct elements
+            const confidenceElements = [
+                '#analysis-confidence',          // Analysis confirmation panel
+                '.confidence-value', 
+                '#ai-confidence'
+            ];
+            confidenceElements.forEach(selector => {
+                const element = document.querySelector(selector);
+                if (element) {
+                    element.textContent = `${confidencePercent}%`;
+                    console.log(`📊 Updated AI confidence (${selector}) to: ${confidencePercent}%`);
+                }
+            });
+            
+            // Update voice segments count - FIXED: Target correct elements  
+            const segmentsElements = [
+                '#analysis-utterances',          // Analysis confirmation panel
+                '.segments-value', 
+                '#voice-segments'
+            ];
+            segmentsElements.forEach(selector => {
+                const element = document.querySelector(selector);
+                if (element) {
+                    element.textContent = blobs.length;
+                    console.log(`📊 Updated voice segments (${selector}) to: ${blobs.length}`);
+                }
+            });
+            
+            // Update detected emotions count - FIXED: Target correct elements
+            const uniqueCategories = Object.values(categoryCounts).filter(count => count > 0).length;
+            const emotionsElements = [
+                '#analysis-emotions',            // Analysis confirmation panel
+                '.emotions-value', 
+                '#detected-emotions'
+            ];
+            emotionsElements.forEach(selector => {
+                const element = document.querySelector(selector);
+                if (element) {
+                    element.textContent = uniqueCategories;
+                    console.log(`📊 Updated detected emotions (${selector}) to: ${uniqueCategories}`);
+                }
+            });
+        } else {
+            // Set all metrics to 0 when no blobs - FIXED: Target correct elements
+            const zeroElements = [
+                // Analysis confirmation panel elements
+                '#analysis-confidence',
+                '#analysis-utterances', 
+                '#analysis-emotions',
+                // Fallback elements
+                '.confidence-value', '#ai-confidence',
+                '.segments-value', '#voice-segments',
+                '.emotions-value', '#detected-emotions'
+            ];
+            
+            zeroElements.forEach(selector => {
+                const element = document.querySelector(selector);
+                if (element) {
+                    if (selector.includes('confidence')) {
+                        element.textContent = '0%';
+                    } else {
+                        element.textContent = '0';
+                    }
+                }
+            });
+            
+            console.log('📊 Set all metrics to 0 (no blobs)');
+        }
+        
+        console.log('📊 Final blob stats:', categoryCounts);
+        console.log('📊 Stats update complete');
     }
-    
-
     
     /**
      * Generate unique session ID

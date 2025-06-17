@@ -195,8 +195,10 @@ def test_database_connection():
     
     try:
         from src.hopes_sorrows.data.db_manager import DatabaseManager
+        from src.hopes_sorrows.core.config import get_config
         
-        db_manager = DatabaseManager()
+        config = get_config()
+        db_manager = DatabaseManager(config.get_database_url())
         
         # Test basic operations
         speakers = db_manager.get_all_speakers()
