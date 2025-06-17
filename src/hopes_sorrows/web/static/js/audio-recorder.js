@@ -5,31 +5,33 @@
 
 class AudioRecorder {
     constructor() {
+        this.isRecording = false;
         this.mediaRecorder = null;
         this.audioChunks = [];
-        this.isRecording = false;
-        this.maxDuration = 44; // 44 seconds max
-        this.recordingTimer = null;
         this.audioContext = null;
         this.analyser = null;
         this.microphone = null;
-        this.visualizationData = null;
-        this.animationFrame = null;
-        
-        // DOM elements
-        this.recordButton = null;
+        this.dataArray = null;
+        this.animationId = null;
         this.timer = null;
-        this.timerProgress = null;
-        this.timerSeconds = null;
-        this.statusPanel = null;
-        this.processingPanel = null;
-        this.errorPanel = null;
+        this.recordingStartTime = null;
+        this.maxDuration = 65; // seconds
         
-        // Session management
-        this.sessionId = this.generateSessionId();
+        // FIXED: Use main app's session ID if available, otherwise generate our own
+        if (window.hopesSorrowsApp && window.hopesSorrowsApp.sessionId) {
+            this.sessionId = window.hopesSorrowsApp.sessionId;
+            console.log('🔗 Using main app session ID:', this.sessionId);
+        } else {
+            this.sessionId = this.generateSessionId();
+            console.log('🆔 Generated new session ID:', this.sessionId);
+        }
+        
+        this.elements = {};
         
         this.initializeElements();
         this.setupEventListeners();
+        
+        console.log('🎤 AudioRecorder initialized');
     }
     
     initializeElements() {
@@ -147,7 +149,7 @@ class AudioRecorder {
             
             this.microphone.connect(this.analyser);
             
-            this.visualizationData = new Uint8Array(this.analyser.frequencyBinCount);
+            this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
         } catch (error) {
             console.error('Error setting up audio context:', error);
         }
@@ -160,7 +162,7 @@ class AudioRecorder {
         }
         this.analyser = null;
         this.microphone = null;
-        this.visualizationData = null;
+        this.dataArray = null;
     }
     
     startVisualization() {
@@ -169,25 +171,25 @@ class AudioRecorder {
         const visualize = () => {
             if (!this.isRecording) return;
             
-            this.analyser.getByteFrequencyData(this.visualizationData);
+            this.analyser.getByteFrequencyData(this.dataArray);
             
             // Calculate audio level for visual feedback
-            const average = this.visualizationData.reduce((sum, value) => sum + value, 0) / this.visualizationData.length;
+            const average = this.dataArray.reduce((sum, value) => sum + value, 0) / this.dataArray.length;
             const normalizedLevel = average / 255;
             
             // Update record button visual feedback
             this.updateRecordButtonVisualization(normalizedLevel);
             
-            this.animationFrame = requestAnimationFrame(visualize);
+            this.animationId = requestAnimationFrame(visualize);
         };
         
         visualize();
     }
     
     stopVisualization() {
-        if (this.animationFrame) {
-            cancelAnimationFrame(this.animationFrame);
-            this.animationFrame = null;
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
         }
     }
     
@@ -206,7 +208,9 @@ class AudioRecorder {
         let timeLeft = this.maxDuration;
         this.updateTimerDisplay(timeLeft);
         
-        this.recordingTimer = setInterval(() => {
+        this.recordingStartTime = Date.now();
+        
+        this.timer = setInterval(() => {
             timeLeft--;
             this.updateTimerDisplay(timeLeft);
             
@@ -217,9 +221,9 @@ class AudioRecorder {
     }
     
     stopTimer() {
-        if (this.recordingTimer) {
-            clearInterval(this.recordingTimer);
-            this.recordingTimer = null;
+        if (this.timer) {
+            clearInterval(this.timer);
+            this.timer = null;
         }
     }
     
@@ -364,21 +368,26 @@ class AudioRecorder {
                 }
                 
                 // Notify the main app about the analysis completion
+                let analysisHandled = false;
                 if (window.hopesSorrowsApp && window.hopesSorrowsApp.handleAnalysisComplete) {
                     console.log('🎯 Calling main app handleAnalysisComplete with:', result);
                     window.hopesSorrowsApp.handleAnalysisComplete(result);
+                    analysisHandled = true;
                 } else {
                     console.warn('⚠️ Main app not available, trying direct analysis confirmation');
                     console.log('🔍 Available on window:', Object.keys(window).filter(k => k.includes('hopes') || k.includes('App')));
                     
-                    // ENHANCED: More aggressive fallback handling
+                    // FIXED: Only retry if main app wasn't available initially
                     setTimeout(() => {
-                        if (window.hopesSorrowsApp && window.hopesSorrowsApp.handleAnalysisComplete) {
+                        if (!analysisHandled && window.hopesSorrowsApp && window.hopesSorrowsApp.handleAnalysisComplete) {
                             console.log('🔄 Retry successful - main app is now available');
                             window.hopesSorrowsApp.handleAnalysisComplete(result);
-                        } else {
+                            analysisHandled = true;
+                        } else if (!analysisHandled) {
                             console.log('🎯 Using direct analysis confirmation fallback');
                             this.showDirectAnalysisConfirmation(result);
+                        } else {
+                            console.log('🚫 Analysis already handled, skipping retry');
                         }
                     }, 500);
                 }

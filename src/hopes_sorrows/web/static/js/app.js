@@ -197,6 +197,11 @@ class HopesSorrowsApp {
                 // ENHANCED: Handle blob_added events for real-time updates
                 this.socket.on('blob_added', (blobData) => {
                     console.log('🫧 Real-time blob received:', blobData);
+                    console.log('🔍 SESSION ID COMPARISON:');
+                    console.log(`   Blob session_id: "${blobData.session_id}"`);
+                    console.log(`   App session_id: "${this.sessionId}"`);
+                    console.log(`   Match: ${blobData.session_id === this.sessionId}`);
+                    console.log(`   Type comparison: ${typeof blobData.session_id} vs ${typeof this.sessionId}`);
                     
                     // Only add if this isn't from our own session (to avoid duplicates)
                     if (blobData.session_id !== this.sessionId) {
@@ -701,6 +706,11 @@ class HopesSorrowsApp {
      */
     handleAnalysisComplete(data) {
         console.log('🎉 Handling analysis completion:', data);
+        console.log('🔍 ANALYSIS COMPLETE SESSION DATA:');
+        console.log(`   Data session_id: "${data.session_id}"`);
+        console.log(`   App session_id: "${this.sessionId}"`);
+        console.log(`   Blob count: ${data.blobs ? data.blobs.length : 0}`);
+        console.log(`   Call stack trace:`, new Error().stack);
         
         // Prevent duplicate handling
         if (this.isProcessingAnalysis) {
@@ -771,6 +781,42 @@ class HopesSorrowsApp {
     animateNewBlobEntries(blobs) {
         console.log('🎨 Animating new blob entries:', blobs.length);
         
+        // ENHANCED DEBUGGING: Log detailed blob information
+        console.log('🔍 DETAILED BLOB ANALYSIS:');
+        blobs.forEach((blob, index) => {
+            console.log(`   Blob ${index + 1}:`, {
+                id: blob.id,
+                text: blob.text?.substring(0, 50) + '...',
+                category: blob.category,
+                session_id: blob.session_id,
+                speaker_id: blob.speaker_id
+            });
+        });
+        
+        // Check for duplicate texts in this batch
+        const texts = blobs.map(b => b.text);
+        const uniqueTexts = [...new Set(texts)];
+        if (texts.length !== uniqueTexts.length) {
+            console.warn('🚨 DUPLICATE TEXTS DETECTED IN BLOB BATCH!');
+            console.warn(`   Total blobs: ${texts.length}, Unique texts: ${uniqueTexts.length}`);
+        }
+        
+        // Check if visualizer already has any of these blobs
+        if (this.emotionVisualizer && this.emotionVisualizer.blobs) {
+            const existingTexts = this.emotionVisualizer.blobs.map(b => b.text);
+            const duplicateWithExisting = blobs.filter(newBlob => 
+                existingTexts.includes(newBlob.text)
+            );
+            
+            if (duplicateWithExisting.length > 0) {
+                console.warn('🚨 BLOBS DUPLICATE EXISTING VISUALIZER CONTENT!');
+                console.warn(`   ${duplicateWithExisting.length} blobs already exist in visualizer`);
+                duplicateWithExisting.forEach(blob => {
+                    console.warn(`   Duplicate: "${blob.text?.substring(0, 30)}..."`);
+                });
+            }
+        }
+        
         // Create a visual indicator for new entries
         this.showNewBlobIndicator(blobs.length);
         
@@ -781,8 +827,16 @@ class HopesSorrowsApp {
         // Add blobs with staggered timing and visual effects
         blobs.forEach((blobData, index) => {
             setTimeout(() => {
+                console.log(`🫧 Adding blob ${index + 1}/${blobs.length} to visualizer:`, blobData.text?.substring(0, 30));
+                
                 // Add the blob to the visualizer
                 const addedBlob = this.emotionVisualizer.addBlob(blobData);
+                
+                if (addedBlob) {
+                    console.log(`✅ Blob added successfully with ID: ${addedBlob.id}`);
+                } else {
+                    console.warn(`⚠️ Blob ${index + 1} was not added to visualizer`);
+                }
                 
                 // Store the blob ID for highlighting
                 if (addedBlob && addedBlob.id) {
