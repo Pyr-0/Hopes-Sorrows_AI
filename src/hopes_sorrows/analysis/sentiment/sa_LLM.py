@@ -40,13 +40,13 @@ class Config:
 	SENTIMENT_THRESHOLD_HOPE = 0.3
 	SENTIMENT_THRESHOLD_SORROW = -0.2
 	
-	# Confidence thresholds
+	# Confidence thresholds of the LLM model to be used for the combined analysis
 	HIGH_CONFIDENCE = 0.8
 	MEDIUM_CONFIDENCE = 0.6
 	LOW_CONFIDENCE = 0.4
 	
 	# Default model to use
-	LLM_MODEL = "gpt-4o-mini"  # More accurate model
+	LLM_MODEL = "gpt-4o-mini"  # More accurate model for sentiment analysis
 
 class LLMSentimentAnalyzer:
 	"""Enhanced class for analyzing sentiment in text using an LLM."""
@@ -241,20 +241,13 @@ def analyze_sentiment(text: str, speaker_id: Optional[str] = None, context_windo
 			format_error(f"Error during sentiment analysis: {str(e)}")
 		raise
 
-# Main execution block for testing
+# Main execution block for testing (can be removed in production)
 if __name__ == "__main__":
-	test_texts = [
-		"I will achieve my dreams and make a better future for myself.",
-		"I lost everything I worked for and it's all gone now.",
-		"I was hurt, but I've learned to heal and move forward.",
-		"I'm excited about the future but scared of what might happen.",
-		"I'm thinking about what this experience means to me."
-	]
-	
-	# OpenAI API Key use
-	api_key = os.getenv("OPENAI_API_KEY")
-	analyzer = get_analyzer(api_key=api_key)
-	
-	for text in test_texts:
-		print(f"\nAnalyzing: \"{text}\"")
-		analyze_sentiment(text, verbose=True)
+	print("🧠 Hopes & Sorrows LLM Sentiment Analyzer")
+	print("This module is designed to be imported, not run directly.")
+	print("Usage:")
+	print("  from hopes_sorrows.analysis.sentiment import analyze_sentiment_llm")
+	print("  result = analyze_sentiment_llm('Your text here')")
+	print("Or use the combined analyzer:")
+	print("  from hopes_sorrows.analysis.sentiment import analyze_sentiment_combined")
+	print("  result = analyze_sentiment_combined('Your text here')")

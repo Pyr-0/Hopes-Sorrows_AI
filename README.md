@@ -297,6 +297,14 @@ For detailed technical documentation and comprehensive guides, see the [`docs/`]
 - `POST /upload_audio`: Process voice recordings
 - `DELETE /api/clear_visualization`: Reset visualization
 
+## 📚 **Documentation**
+
+### **Comprehensive Guides**
+- **[Sentiment Analysis Guide](docs/user-guides/SENTIMENT_ANALYSIS_COMPREHENSIVE_GUIDE.md)**: Complete guide to understanding the analysis system, scores, metrics, and calculations
+- **[Technical Glossary](docs/GLOSSARY.md)**: Comprehensive explanation of all technical terms and concepts
+- **[Physics System Report](docs/BLOB_PHYSICS_REPORT.md)**: Detailed analysis of the emotion blob physics and social dynamics
+- **[Documentation Index](docs/README.md)**: Complete documentation hub with all guides and references
+
 ## 🧪 **Testing & Component Usage**
 
 ### 🔬 **Individual Component Testing**

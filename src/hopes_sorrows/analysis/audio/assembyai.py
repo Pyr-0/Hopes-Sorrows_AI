@@ -1,14 +1,9 @@
 from dotenv import load_dotenv
 import os
 import assemblyai as aai
-# Audio recording libraries only needed for CLI recording, not web app
-try:
-    import sounddevice as sd
-    from scipy.io.wavfile import write
-    AUDIO_RECORDING_AVAILABLE = True
-except ImportError:
-    AUDIO_RECORDING_AVAILABLE = False
-    # This is fine - web app uses browser recording, CLI can use file upload
+# Audio recording functionality removed - web app uses browser recording
+# CLI can work with uploaded audio files
+AUDIO_RECORDING_AVAILABLE = False
 import sys
 import os
 from datetime import datetime
@@ -92,30 +87,8 @@ class SpeakerManager:
 		self.speaker_cache.clear()
 
 def record(duration=65, filename=None):
-	"""Record audio with timestamp in filename"""
-	if not AUDIO_RECORDING_AVAILABLE:
-		raise RuntimeError("Audio recording not available. Please install PyAudio: pip install pyaudio")
-	
-	# Create recordings directory in the centralized data directory
-	from ...core.config import get_config
-	config = get_config()
-	recordings_dir = config.get_recordings_path()
-	os.makedirs(recordings_dir, exist_ok=True)
-		
-	if filename is None:
-		timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-		filename = f"recording_{timestamp}.wav"
-		
-	# Ensure filename is in the recordings directory
-	filepath = os.path.join(recordings_dir, filename)
-		
-	fs = 44100  # Sample rate
-	print("🎤 Recording...")
-	audio = sd.rec(int(duration * fs), samplerate=fs, channels=1)
-	sd.wait()
-	write(filepath, fs, audio)
-	print(f"✅ Saved as {filepath}")
-	return filepath
+	"""Record audio functionality removed - use web browser recording or upload audio files"""
+	raise RuntimeError("Direct audio recording removed. Use web interface for recording or upload audio files for analysis.")
 
 def analyze_audio(audio_file, use_llm=True, expected_speakers=None):
 	"""
@@ -680,10 +653,13 @@ def print_analysis(analysis):
 			console.print("\n" + "="*100)
 
 if __name__ == "__main__":
-	# Record new audio
-	new_recording = record()
-		
-	# Analyze with both transformer and LLM
-	analysis = analyze_audio(new_recording, use_llm=True)
-	print_analysis(analysis)
+	# For testing: Use an existing audio file
+	# analysis = analyze_audio("path/to/your/audio/file.wav", use_llm=True)
+	# print_analysis(analysis)
+	print("🎤 Hopes & Sorrows Audio Analysis")
+	print("Use the web interface for recording or upload audio files for analysis.")
+	print("Example usage:")
+	print("  from hopes_sorrows.analysis.audio import analyze_audio")
+	print("  analysis = analyze_audio('your_audio_file.wav')")
+	print("  print_analysis(analysis)")
 		

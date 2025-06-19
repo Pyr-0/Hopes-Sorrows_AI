@@ -7,6 +7,7 @@ Welcome to the comprehensive documentation hub for **Hopes & Sorrows** - an adva
 ### **Core Documentation**
 - **[GLOSSARY.md](GLOSSARY.md)** - Comprehensive technical glossary explaining all terminology, concepts, and jargon used in the project
 - **[BLOB_PHYSICS_REPORT.md](BLOB_PHYSICS_REPORT.md)** - Detailed technical analysis of the emotion blob physics system and social dynamics
+- **[EMOTIONAL_JOURNEY_VISUALIZATION_CONCEPTS.md](EMOTIONAL_JOURNEY_VISUALIZATION_CONCEPTS.md)** - Future visualization concepts for emotional journey tracking (ideas for future implementation)
 
 ### **Project Documentation**
 - **[Main README.md](../README.md)** - Complete project overview, installation guide, usage instructions, and technology stack
@@ -17,22 +18,25 @@ Welcome to the comprehensive documentation hub for **Hopes & Sorrows** - an adva
 ### **For New Users**
 1. **Start here**: [Main README.md](../README.md) - Get the big picture and quick start guide
 2. **Understand the tech**: [GLOSSARY.md](GLOSSARY.md) - Learn the terminology and concepts
-3. **Try the app**: Follow the installation guide in the main README
-4. **Explore physics**: [BLOB_PHYSICS_REPORT.md](BLOB_PHYSICS_REPORT.md) - Understand the emotion blob behavior
+3. **Learn the analysis**: [user-guides/SENTIMENT_ANALYSIS_COMPREHENSIVE_GUIDE.md](user-guides/SENTIMENT_ANALYSIS_COMPREHENSIVE_GUIDE.md) - Complete guide to sentiment analysis system
+4. **Try the app**: Follow the installation guide in the main README
+5. **Explore physics**: [BLOB_PHYSICS_REPORT.md](BLOB_PHYSICS_REPORT.md) - Understand the emotion blob behavior
 
 ### **For Developers**
 1. **Project setup**: [Main README.md](../README.md#-quick-start) - Installation and development setup
 2. **Architecture**: [Main README.md](../README.md#-project-architecture) - System architecture and file structure
 3. **Technical terms**: [GLOSSARY.md](GLOSSARY.md) - Deep dive into technical concepts
-4. **Physics system**: [BLOB_PHYSICS_REPORT.md](BLOB_PHYSICS_REPORT.md) - Social physics implementation details
-5. **Dependencies**: [requirements.txt](../requirements.txt) - Required packages and versions
+4. **Analysis system**: [user-guides/SENTIMENT_ANALYSIS_COMPREHENSIVE_GUIDE.md](user-guides/SENTIMENT_ANALYSIS_COMPREHENSIVE_GUIDE.md) - Complete analysis system documentation
+5. **Physics system**: [BLOB_PHYSICS_REPORT.md](BLOB_PHYSICS_REPORT.md) - Social physics implementation details
+6. **Dependencies**: [requirements.txt](../requirements.txt) - Required packages and versions
 
 ### **For Contributors**
 1. **Project overview**: [Main README.md](../README.md) - Understanding the project goals and features
 2. **Technical foundation**: [GLOSSARY.md](GLOSSARY.md) - Master the terminology and concepts
-3. **Development guide**: [Main README.md](../README.md#-development) - Development workflow
-4. **Physics insights**: [BLOB_PHYSICS_REPORT.md](BLOB_PHYSICS_REPORT.md) - Advanced technical implementation
-5. **Legal info**: [LICENSE](../LICENSE) - Contribution terms under MIT License
+3. **Future concepts**: [EMOTIONAL_JOURNEY_VISUALIZATION_CONCEPTS.md](EMOTIONAL_JOURNEY_VISUALIZATION_CONCEPTS.md) - Future visualization ideas for contribution
+4. **Development guide**: [Main README.md](../README.md#-development) - Development workflow
+5. **Physics insights**: [BLOB_PHYSICS_REPORT.md](BLOB_PHYSICS_REPORT.md) - Advanced technical implementation
+6. **Legal info**: [LICENSE](../LICENSE) - Contribution terms under MIT License
 
 ## 🔧 Key Features Documented
 
@@ -230,6 +234,8 @@ socket.on('analysis_complete', (data) => {
 | Main README.md | ✅ Complete | Project overview, installation, usage | December 2024 |
 | GLOSSARY.md | ✅ Complete | Technical terminology and concepts | December 2024 |
 | BLOB_PHYSICS_REPORT.md | ✅ Complete | Physics system technical analysis | December 2024 |
+| user-guides/SENTIMENT_ANALYSIS_COMPREHENSIVE_GUIDE.md | ✅ Complete | Complete sentiment analysis system guide | December 2024 |
+| EMOTIONAL_JOURNEY_VISUALIZATION_CONCEPTS.md | ✅ Complete | Future visualization concepts | December 2024 |
 | API Documentation | 📋 Embedded | Available in main README | December 2024 |
 | User Tutorials | 📋 Embedded | Usage guide in main README | December 2024 |
 | Development Guide | 📋 Embedded | Development info in main README | December 2024 |
